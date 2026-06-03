@@ -1,7 +1,13 @@
 import React from 'react';
-import { Star } from 'lucide-react'; // Εικονίδιο αστεριού για τη βαθμολογία
+import { Star } from 'lucide-react';
 
 function MovieCard({ movie, onMovieClick }) {
+  // Παίρνουμε μόνο το έτος από το releaseDate (π.χ. από "2024-03-15" κρατάμε το "2024")
+  const releaseYear = movie.releaseDate ? movie.releaseDate.split('-')[0] : 'N/A';
+
+  // Στρογγυλοποίηση της βαθμολογίας σε ένα δεκαδικό (π.χ. 7.842 -> 7.8)
+  const formattedRating = movie.rating ? movie.rating.toFixed(1) : '0.0';
+
   return (
     <div 
       className="movie-card" 
@@ -15,25 +21,25 @@ function MovieCard({ movie, onMovieClick }) {
         }
       }}
     >
-      {/* Εικόνα/Poster Ταινίας - HCI: Βασικό σημείο αλληλεπίδρασης για το σενάριο της εργασίας */}
+      {/* Χρησιμοποιούμε το movie.poster για σωστή αναλογία κάθετης κάρτας (Portrait) */}
       <img 
-        src={movie.image} 
+        src={movie.poster} 
         alt={`Αφίσα της ταινίας ${movie.title}`} 
         className="card-img" 
         loading="lazy"
       />
       
-      {/* Πληροφορίες Ταινίας (Κάτω μέρος κάρτας) */}
       <div className="card-info">
         <h3 className="card-title" title={movie.title}>
           {movie.title}
         </h3>
         
         <div className="card-meta">
-          <span>{movie.year}</span>
+          {/* Εμφάνιση μόνο του έτους κυκλοφορίας */}
+          <span>{releaseYear}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <Star size={14} fill="#ffd700" color="#ffd700" aria-hidden="true" />
-            <span className="rating-badge">{movie.rating}</span>
+            <span className="rating-badge">{formattedRating}</span>
           </div>
         </div>
       </div>

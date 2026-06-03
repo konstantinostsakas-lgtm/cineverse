@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { moviesData } from '../data/movies';
-import { ArrowLeft, Users, Send, Play, Calendar, Clock, Star } from 'lucide-react'; // HCI: Εικονίδια για άμεση αναγνώριση ενεργειών
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Users, Send, Play, Calendar, Clock, Star } from 'lucide-react';
 
 function MovieDetails({ movieId, onBackToHome }) {
-  // Εύρεση της ταινίας στη βάση δεδομένων με βάση το ID της
-  const movie = moviesData.find(m => m.id === movieId);
+  // State για τα live δεδομένα της ταινίας από το API
+  const [movie, setMovie] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // State για την ενεργοποίηση του Watch Party (Split-Screen 70/30)
   const [isWatchParty, setIsWatchParty] = useState(false);
@@ -16,6 +16,54 @@ function MovieDetails({ movieId, onBackToHome }) {
   ]);
   const [inputText, setInputText] = useState("");
 
+  // Ρυθμίσεις API
+  const API_KEY = process.env.REACT_APP_TMDB_API_KEY;
+  const BASE_URL = 'https://api.themoviedb.org/3';
+  const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
+
+  // Fetch τις λεπτομέρειες της ταινίας από το TMDB όταν αλλάζει το movieId
+  useEffect(() => {
+    const fetchMovieDetails = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}&language=el-GR`);
+        const data = await response.json();
+
+        if (data.success === false) {
+          setMovie(null);
+        } else {
+          // Μετατροπή των λεπτών σε μορφή "Xώ Yλ" (π.χ. 130 -> 2ώ 10λ)
+          const formatDuration = (minutes) => {
+            if (!minutes) return 'N/A';
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return hours > 0 ? `${hours}ώ ${mins}λ` : `${mins}λ`;
+          };
+
+          // Προσαρμογή των δεδομένων στη δομή του component σου
+          setMovie({
+            id: data.id,
+            title: data.title,
+            overview: data.overview || 'Δεν υπάρχει διαθέσιμη περιγραφή στα Ελληνικά.',
+            image: data.backdrop_path ? `${IMAGE_BASE_URL}${data.backdrop_path}` : 'https://via.placeholder.com/1920x1080?text=No+Image',
+            poster: data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : 'https://via.placeholder.com/500x750?text=No+Poster',
+            rating: data.vote_average ? data.vote_average.toFixed(1) : '0.0',
+            year: data.release_date ? data.release_date.split('-')[0] : 'N/A',
+            duration: formatDuration(data.runtime)
+          });
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error("Σφάλμα κατά τη φόρτωση των λεπτομερειών της ταινίας:", error);
+        setLoading(false);
+      }
+    };
+
+    if (movieId) {
+      fetchMovieDetails();
+    }
+  }, [movieId, API_KEY]);
+
   // Χειρισμός αποστολής μηνύματος στο Live Chat
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -23,7 +71,7 @@ function MovieDetails({ movieId, onBackToHome }) {
     
     const newMsg = {
       id: messages.length + 1,
-      user: "Εσείς (Ήφαιστος)", // Χρήση του μυθολογικού profile avatar concept
+      user: "Εσείς (Ήφαιστος)",
       text: inputText
     };
     
@@ -31,12 +79,17 @@ function MovieDetails({ movieId, onBackToHome }) {
     setInputText("");
   };
 
-  // Αν δεν βρεθεί η ταινία, επιστρέφει ένα safe UI fallback
+  // 1. Fallback UI κατά τη διάρκεια της φόρτωσης
+  if (loading) {
+    return <div style={{ color: '#fff', padding: '4rem', textAlign: 'center' }}>Φόρτωση λεπτομερειών...</div>;
+  }
+
+  // 2. Fallback UI αν δεν βρεθεί η ταινία στο API
   if (!movie) {
     return (
-      <div style={{ padding: '4rem', textAlign: 'center' }}>
+      <div style={{ padding: '4rem', textAlign: 'center', color: '#fff' }}>
         <p>Η ταινία δεν βρέθηκε.</p>
-        <button className="primary-btn" onClick={onBackToHome} style={{ marginTop: '1rem' }}>
+        <button className="primary-btn" onClick={onBackToHome} style={{ marginTop: '1rem', display: 'inline-flex' }}>
           Επιστροφή στην Αρχική
         </button>
       </div>
@@ -51,11 +104,11 @@ function MovieDetails({ movieId, onBackToHome }) {
         <div className="details-wrapper">
           
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '1.5rem' }}>
-            {/* Κουμπί Επιστροφής - HCI: User Control & Freedom (Nielsen Heuristics) */}
+            {/* Κουμπί Επιστροφής */}
             <button 
               className="primary-btn" 
               onClick={onBackToHome}
-              style={{ backgroundColor: 'rgba(0,0,0,0.6)', border: '1px solid #444' }}
+              style={{ backgroundColor: 'rgba(0,0,0,0.6)', border: '1px solid #444', alignSelf: 'flex-start' }}
               aria-label="Επιστροφή στην αρχική σελίδα"
             >
               <ArrowLeft size={18} /> Πίσω στην Αρχική
@@ -75,14 +128,14 @@ function MovieDetails({ movieId, onBackToHome }) {
             {/* Παρουσίαση Στοιχείων Ταινίας (Poster, Τίτλος, Περιγραφή) */}
             <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginTop: '1rem' }}>
               {!isWatchParty && (
-                <img src={movie.image} alt={`Αφίσα ${movie.title}`} className="poster-large" />
+                <img src={movie.poster} alt={`Αφίσα ${movie.title}`} className="poster-large" style={{ width: '250px', borderRadius: '8px' }} />
               )}
               
-              <div className="details-info">
+              <div className="details-info" style={{ flex: 1, minWidth: '300px' }}>
                 <h1 style={{ fontSize: '2.8rem', fontWeight: 800 }}>{movie.title}</h1>
                 
-                {/* Meta Badges (Έτος, Διάρκεια, Rating) */}
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', color: 'var(--text-muted)', fontSize: '1rem' }}>
+                {/* Meta Badges */}
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <Calendar size={16} /> <span>{movie.year}</span>
                   </div>
@@ -99,13 +152,12 @@ function MovieDetails({ movieId, onBackToHome }) {
                   {movie.overview}
                 </p>
 
-                {/* Διαδραστικά Call-to-Action Κουμπιά */}
+                {/* Διαδραστικά Κουμπιά */}
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
                   <button className="primary-btn" onClick={() => setIsWatchParty(true)}>
                     <Play size={18} fill="#fff" /> {isWatchParty ? "Επανεκκίνηση Ταινίας" : "Παρακολούθηση Τώρα"}
                   </button>
                   
-                  {/* Κουμπί Watch Party - Ενσωμάτωση Κοινωνικού Σχεδιασμού (GreekFlix) */}
                   {!isWatchParty && (
                     <button 
                       className="primary-btn" 
@@ -123,7 +175,7 @@ function MovieDetails({ movieId, onBackToHome }) {
         </div>
       </main>
 
-      {/* ΔΕΞΙ ΜΕΡΟΣ: Social Chat Sidebar (30% Διάταξη - Εμφανίζεται ΜΟΝΟ στο Watch Party) */}
+      {/* ΔΕΞΙ ΜΕΡΟΣ: Social Chat Sidebar */}
       {isWatchParty && (
         <aside className="watch-sidebar" aria-label="Live Chat Δωματίου">
           <div className="chat-header">
@@ -133,7 +185,6 @@ function MovieDetails({ movieId, onBackToHome }) {
             </div>
           </div>
 
-          {/* Προβολή Μηνυμάτων Χρηστών */}
           <div className="chat-messages">
             {messages.map(msg => (
               <div key={msg.id} className="chat-bubble">
@@ -143,7 +194,6 @@ function MovieDetails({ movieId, onBackToHome }) {
             ))}
           </div>
 
-          {/* Φόρμα Πληκτρολόγησης και Αποστολής Μηνύματος */}
           <form className="chat-input-container" onSubmit={handleSendMessage}>
             <input 
               type="text" 
