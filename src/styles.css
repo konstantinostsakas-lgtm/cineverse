@@ -1,0 +1,505 @@
+/* --- ΚΑΘΟΛΙΚΕΣ ΡΥΘΜΙΣΕΙΣ (RESET & BASE) --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif; /* HCI: Υψηλή αναγνωσιμότητα γραμματοσειράς */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+:root {
+  --bg-primary: #141414; /* Netflix-style βαθύ μαύρο */
+  --bg-secondary: #1f1f1f; /* Σκούρο γκρι για κάρτες και panels */
+  --accent-red: #e50914; /* Cinematic interactive κόκκινο */
+  --accent-blue: #0071eb; /* Δευτερεύον accent για links/actions */
+  --text-main: #ffffff;
+  --text-muted: #aaaaaa;
+  --font-scale: 1; /* Δυναμικό scaling για accessibility */
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  overflow-x: hidden;
+}
+
+/* --- ΚΛΑΣΕΙΣ ΠΡΟΣΒΑΣΙΜΟΤΗΤΑΣ (ACCESSIBILITY FEATURES) --- */
+/* High Contrast Mode: Για χρήστες με χαμηλή ορατότητα (Contrast >= 7:1) */
+.high-contrast {
+  --bg-primary: #000000;
+  --bg-secondary: #111111;
+  --accent-red: #ff0000;
+  --accent-blue: #00a0ff;
+  --text-main: #ffffff;
+  --text-muted: #ffffff;
+}
+
+/* Φίλτρα Αχρωματοψίας (Color Blindness Filters) */
+.protanopia { filter: url('#protanopia-filter') !important; }
+.deuteranopia { filter: url('#deuteranopia-filter') !important; }
+.tritanopia { filter: url('#tritanopia-filter') !important; }
+
+/* --- NAVIGATION BAR --- */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 4%;
+  background-color: rgba(20, 20, 20, 0.95);
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1000;
+  border-bottom: 1px solid #222;
+}
+
+.nav-logo {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--accent-red);
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.search-container {
+  position: relative;
+}
+
+.search-input {
+  background: #222;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 0.5rem 1rem 0.5rem 2.5rem;
+  border-radius: 20px;
+  outline: none;
+  width: 250px;
+  transition: width 0.3s ease, border-color 0.3s ease;
+}
+
+.search-input:focus {
+  width: 320px;
+  border-color: var(--accent-red);
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.icon-btn:hover {
+  background: #2a2a2a;
+}
+
+/* --- HERO BANNER --- */
+.hero {
+  position: relative;
+  height: 70vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 4% 5rem 4%;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(to bottom, rgba(20,20,20,0.1), rgba(20,20,20,0.95));
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 600px;
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+}
+
+.hero-overview {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+/* --- MOVIE CAROUSELS --- */
+.main-content {
+  padding-top: 80px;
+}
+
+.carousel-section {
+  padding: 2rem 4%;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  border-left: 4px solid var(--accent-red);
+  padding-left: 10px;
+}
+
+.carousel-container {
+  display: flex;
+  gap: 1.2rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  scroll-behavior: smooth;
+}
+
+.carousel-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.carousel-container::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+/* --- MOVIE CARDS (HCI: Fitts's Law & Gestalt Principles) --- */
+.movie-card {
+  min-width: 200px;
+  width: 200px;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transform: scale(1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.movie-card:hover {
+  transform: scale(1.05); /* Interaction feedback */
+  z-index: 10;
+}
+
+.card-img {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+}
+
+.card-info {
+  padding: 0.8rem;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.rating-badge {
+  background-color: #46d369;
+  color: #000;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* --- ACCESSIBILITY MODAL --- */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: var(--bg-secondary);
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  border: 1px solid #333;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+}
+
+.settings-btn {
+  background: #333;
+  color: #fff;
+  border: 2px solid transparent;
+  padding: 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.settings-btn.active {
+  border-color: var(--accent-red);
+  background: #444;
+}
+
+/* --- DETAILS PAGE & WATCH PARTY (70/30 SPLIT SCREEN) --- */
+.details-container {
+  display: flex;
+  min-height: calc(100vh - 80px);
+  width: 100%;
+}
+
+/* Κανονικό layout χωρίς Watch Party */
+.details-main {
+  width: 100%;
+  padding: 3rem 4%;
+  display: flex;
+  gap: 3rem;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.details-main::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(20, 20, 20, 0.85);
+  backdrop-filter: blur(10px);
+}
+
+.details-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 3rem;
+  width: 100%;
+}
+
+/* 70/30 Διάταξη κατά το Watch Party */
+.watch-party-active .details-main {
+  width: 70%;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+}
+
+.watch-sidebar {
+  width: 30%;
+  background: #111;
+  border-left: 1px solid #222;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 80px);
+  position: sticky;
+  top: 80px;
+}
+
+.poster-large {
+  width: 350px;
+  height: 500px;
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.details-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.primary-btn {
+  background-color: var(--accent-red);
+  color: #fff;
+  border: none;
+  padding: 0.8rem 1.8rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: flex-start;
+  transition: transform 0.2s;
+}
+
+.primary-btn:hover {
+  transform: translateY(-2px);
+}
+
+/* VIDEO PLAYER SIMULATION */
+.video-player-mock {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #333;
+}
+
+/* CHAT SIDEBAR (GreekFlix Social System) */
+.chat-header {
+  padding: 1rem;
+  border-bottom: 1px solid #222;
+  font-weight: 700;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.chat-bubble {
+  background: #222;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.chat-user {
+  font-weight: 700;
+  color: var(--accent-blue);
+  margin-bottom: 2px;
+}
+
+.chat-input-container {
+  padding: 1rem;
+  border-top: 1px solid #222;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chat-input {
+  flex: 1;
+  background: #222;
+  border: 1px solid #333;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 4px;
+  outline: none;
+}
+
+/* --- GAMIFICATION LEADERBOARD --- */
+.leaderboard-container {
+  padding: 2rem 4%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.user-progress-card {
+  background: var(--bg-secondary);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--accent-red);
+}
+
+.xp-bar-bg {
+  background: #333;
+  height: 12px;
+  border-radius: 6px;
+  width: 100%;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.xp-bar-fill {
+  background: linear-gradient(90deg, var(--accent-blue), #00ffcc);
+  height: 100%;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.leaderboard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #1a1a1a;
+  border-radius: 8px;
+  border-left: 4px solid transparent;
+}
+
+.leaderboard-item.top-three {
+  border-left-color: var(--accent-blue);
+}
