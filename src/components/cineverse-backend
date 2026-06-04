@@ -1,0 +1,17 @@
+// Ένα απλό παράδειγμα του server κώδικα
+io.on('connection', (socket) => {
+  // Όταν ένας χρήστης μπαίνει σε ένα δωμάτιο ταινίας
+  socket.on('join-room', (roomId) => {
+    socket.join(roomId);
+  });
+
+  // Όταν κάποιος ελέγχει το βίντεο (Play/Pause/Seek)
+  socket.on('video-control', ({ roomId, action, currentTime }) => {
+    socket.to(roomId).emit('video-control-client', { action, currentTime });
+  });
+
+  // Όταν κάποιος στέλνει μήνυμα
+  socket.on('send-message', ({ roomId, message }) => {
+    socket.to(roomId).emit('receive-message', message);
+  });
+});

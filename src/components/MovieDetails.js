@@ -1,27 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Send, Play, Calendar, Clock, Star } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Users, Send, Calendar, Clock, Star, Play, Trophy } from 'lucide-react';
+import ReactPlayer from 'react-player'; 
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:5000', { autoConnect: false });
 
 function MovieDetails({ movieId, onBackToHome }) {
-  // State για τα live δεδομένα της ταινίας από το API
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // State για την ενεργοποίηση του Watch Party (Split-Screen 70/30)
-  const [isWatchParty, setIsWatchParty] = useState(false);
+  const [isWatchParty, setIsWatchParty] = useState(false); // Δείχνει αν ο player είναι ανοιχτός γενικά
+  const [isPartyMode, setIsPartyMode] = useState(false);   // Δείχνει αν είμαστε σε Watch Party ή Μόνοι μας
+  const [xpAwarded, setXpAwarded] = useState(false);       // Για να μην παίρνει ο χρήστης άπειρα XP κάνοντας κλικ
   
-  // States για το Chat της Sidebar
+  // Real-time έλεγχος του Player & Chat Scroll
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playerRef = useRef(null); 
+  const messagesEndRef = useRef(null); // 🛠️ Ref για αυτόματο scroll στο chat
+  
+  const isInternalAction = useRef(false);
+
+  // Εγγυημένο YouTube Link για τις δοκιμές
+  const REAL_VIDEO_URL = "https://www.youtube.com/watch?v=Bey4XXJAqS8";
+  
   const [messages, setMessages] = useState([
-    { id: 1, user: "Γιώργος (Πρωτανωπία)", text: "Καλή αρχή! Η ποιότητα είναι τέλεια." },
-    { id: 2, user: "Κατερίνα (Cinephile)", text: "Αυτή η σκηνή έχει απίστευτη μουσική επένδυση!" }
+    { id: 'm1', user: "Γιώργος (Πρωτανωπία)", text: "Καλή αρχή! Η ποιότητα είναι τέλεια." },
+    { id: 'm2', user: "Κατερίνα (Cinephile)", text: "Αυτή η σκηνή έχει απίστευτη μουσική επένδυση!" }
   ]);
   const [inputText, setInputText] = useState("");
 
-  // Ρυθμίσεις API
   const API_KEY = process.env.REACT_APP_TMDB_API_KEY;
   const BASE_URL = 'https://api.themoviedb.org/3';
   const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
 
-  // Fetch τις λεπτομέρειες της ταινίας από το TMDB όταν αλλάζει το movieId
+  // 🛠️ Εφέ για αυτόματο scroll στο κάτω μέρος του chat κάθε φορά που αλλάζουν τα μηνύματα
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
   useEffect(() => {
     const fetchMovieDetails = async () => {
       try {
@@ -32,7 +49,6 @@ function MovieDetails({ movieId, onBackToHome }) {
         if (data.success === false) {
           setMovie(null);
         } else {
-          // Μετατροπή των λεπτών σε μορφή "Xώ Yλ" (π.χ. 130 -> 2ώ 10λ)
           const formatDuration = (minutes) => {
             if (!minutes) return 'N/A';
             const hours = Math.floor(minutes / 60);
@@ -40,7 +56,6 @@ function MovieDetails({ movieId, onBackToHome }) {
             return hours > 0 ? `${hours}ώ ${mins}λ` : `${mins}λ`;
           };
 
-          // Προσαρμογή των δεδομένων στη δομή του component σου
           setMovie({
             id: data.id,
             title: data.title,
@@ -64,68 +79,160 @@ function MovieDetails({ movieId, onBackToHome }) {
     }
   }, [movieId, API_KEY]);
 
-  // Χειρισμός αποστολής μηνύματος στο Live Chat
+  // WebSockets Real-time συγχρονισμός
+  useEffect(() => {
+    if (isWatchParty) {
+      if (!socket.connected) {
+        socket.connect();
+      }
+      socket.emit('join-room', movieId);
+
+      if (isPartyMode) {
+        socket.on('receive-message', (incomingMsg) => {
+          setMessages((prevMessages) => [...prevMessages, incomingMsg]);
+        });
+
+        socket.on('video-control-client', (data) => {
+          isInternalAction.current = true;
+
+          if (data.action === 'play') {
+            setTimeout(() => {
+              setIsPlaying(true);
+              if (data.currentTime && playerRef.current) {
+                playerRef.current.seekTo(data.currentTime, 'seconds');
+              }
+            }, 100);
+          } else if (data.action === 'pause') {
+            setIsPlaying(false);
+          }
+        });
+      }
+    }
+
+    return () => {
+      socket.off('receive-message');
+      socket.off('video-control-client');
+      if (socket.connected) {
+        socket.disconnect();
+      }
+    };
+  }, [isWatchParty, isPartyMode, movieId]); // 🛠️ Ασφαλές dependency array χωρίς διπλότυπα listeners
+
+  // ΕΠΙΛΟΓΗ 1: Παρακολούθηση Μόνος μου (Solo Mode)
+  const handleStartSoloWatch = () => {
+    setIsWatchParty(true);
+    setIsPartyMode(false); 
+    setIsPlaying(false);
+  };
+
+  // ΕΠΙΛΟΓΗ 2: Παρακολούθηση με Παρέα (Watch Party)
+  const handleStartWatchParty = () => {
+    setIsWatchParty(true);
+    setIsPartyMode(true);  
+    setIsPlaying(false); 
+  };
+
+  // 🏆 Λειτουργία επιβράβευσης XP όταν ο χρήστης δει τουλάχιστον ένα μέρος της ταινίας
+  const handleVideoProgress = (state) => {
+    if (state.playedSeconds > 5 && !xpAwarded) {
+      setXpAwarded(true);
+      socket.emit('add-xp', { userId: 'user_1', amount: 100 });
+      alert("🏆 Συγχαρητήρια! Κέρδισες +100 XP στο Championship για την προβολή της ταινίας!");
+    }
+  };
+
+  const handleVideoPlay = () => {
+    if (!isPartyMode) {
+      setIsPlaying(true);
+      return;
+    }
+
+    if (isInternalAction.current) {
+      isInternalAction.current = false;
+      return;
+    }
+
+    setIsPlaying(true);
+    const currentTime = playerRef.current ? playerRef.current.getCurrentTime() : 0;
+    
+    socket.emit('video-control', {
+      roomId: movieId,
+      action: 'play',
+      currentTime: currentTime
+    });
+  };
+
+  const handleVideoPause = () => {
+    if (!isPartyMode) {
+      setIsPlaying(false);
+      return;
+    }
+
+    if (isInternalAction.current) {
+      isInternalAction.current = false;
+      return;
+    }
+
+    setIsPlaying(false);
+    socket.emit('video-control', {
+      roomId: movieId,
+      action: 'pause'
+    });
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
     
     const newMsg = {
-      id: messages.length + 1,
+      id: Date.now().toString(),
       user: "Εσείς (Ήφαιστος)",
       text: inputText
     };
     
-    setMessages([...messages, newMsg]);
+    setMessages((prevMessages) => [...prevMessages, newMsg]);
+    socket.emit('send-message', { roomId: movieId, message: newMsg, userId: 'user_1' });
     setInputText("");
   };
 
-  // 1. Fallback UI κατά τη διάρκεια της φόρτωσης
-  if (loading) {
-    return <div style={{ color: '#fff', padding: '4rem', textAlign: 'center' }}>Φόρτωση λεπτομερειών...</div>;
-  }
+  // 🛠️ Συναρτήση ασφαλούς εξόδου στην Αρχική Σελίδα
+  const handleBackAction = () => {
+    setIsWatchParty(false);
+    setIsPlaying(false);
+    onBackToHome();
+  };
 
-  // 2. Fallback UI αν δεν βρεθεί η ταινία στο API
-  if (!movie) {
-    return (
-      <div style={{ padding: '4rem', textAlign: 'center', color: '#fff' }}>
-        <p>Η ταινία δεν βρέθηκε.</p>
-        <button className="primary-btn" onClick={onBackToHome} style={{ marginTop: '1rem', display: 'inline-flex' }}>
-          Επιστροφή στην Αρχική
-        </button>
-      </div>
-    );
-  }
+  if (loading) return <div style={{ color: '#fff', padding: '4rem', textAlign: 'center' }}>Φόρτωση λεπτομερειών...</div>;
+  if (!movie) return <div style={{ padding: '4rem', textAlign: 'center', color: '#fff' }}><p>Η ταινία δεν βρέθηκε.</p></div>;
 
   return (
-    <div className={`details-container ${isWatchParty ? 'watch-party-active' : ''}`}>
+    <div className={`details-container ${isWatchParty && isPartyMode ? 'watch-party-active' : ''}`}>
       
-      {/* ΚΥΡΙΟ ΜΕΡΟΣ: Πληροφορίες Ταινίας ή Video Player (70% σε Watch Party Layout) */}
       <main className="details-main" style={{ backgroundImage: `url(${movie.image})` }}>
         <div className="details-wrapper">
-          
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '1.5rem' }}>
-            {/* Κουμπί Επιστροφής */}
-            <button 
-              className="primary-btn" 
-              onClick={onBackToHome}
-              style={{ backgroundColor: 'rgba(0,0,0,0.6)', border: '1px solid #444', alignSelf: 'flex-start' }}
-              aria-label="Επιστροφή στην αρχική σελίδα"
-            >
+            
+            <button className="primary-btn" onClick={handleBackAction} style={{ backgroundColor: 'rgba(0,0,0,0.6)', border: '1px solid #444', alignSelf: 'flex-start' }}>
               <ArrowLeft size={18} /> Πίσω στην Αρχική
             </button>
 
-            {/* Αν το Watch Party είναι ενεργό, εμφανίζεται ο Video Player στην κορυφή */}
+            {/* Ο VIDEO PLAYER */}
             {isWatchParty ? (
-              <div className="video-player-mock">
-                <div style={{ textAlign: 'center' }}>
-                  <Play size={48} style={{ color: 'var(--accent-red)', marginBottom: '1rem', animation: 'pulse 2s infinite' }} />
-                  <p style={{ fontWeight: 600 }}>Συγχρονισμένη Αναπαραγωγή σε Εξέλιξη (WebRTC Simulated)</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>00:14 / {movie.duration}</p>
-                </div>
+              <div className="video-player-real-wrapper" style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#000', aspectRatio: '16/9' }}>
+                <ReactPlayer
+                  ref={playerRef}
+                  url={REAL_VIDEO_URL}
+                  playing={isPlaying}
+                  controls={true}
+                  width="100%"
+                  height="100%"
+                  onPlay={handleVideoPlay}
+                  onPause={handleVideoPause}
+                  onProgress={handleVideoProgress} 
+                />
               </div>
             ) : null}
 
-            {/* Παρουσίαση Στοιχείων Ταινίας (Poster, Τίτλος, Περιγραφή) */}
             <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginTop: '1rem' }}>
               {!isWatchParty && (
                 <img src={movie.poster} alt={`Αφίσα ${movie.title}`} className="poster-large" style={{ width: '250px', borderRadius: '8px' }} />
@@ -134,7 +241,6 @@ function MovieDetails({ movieId, onBackToHome }) {
               <div className="details-info" style={{ flex: 1, minWidth: '300px' }}>
                 <h1 style={{ fontSize: '2.8rem', fontWeight: 800 }}>{movie.title}</h1>
                 
-                {/* Meta Badges */}
                 <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <Calendar size={16} /> <span>{movie.year}</span>
@@ -152,22 +258,29 @@ function MovieDetails({ movieId, onBackToHome }) {
                   {movie.overview}
                 </p>
 
-                {/* Διαδραστικά Κουμπιά */}
-                <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
-                  <button className="primary-btn" onClick={() => setIsWatchParty(true)}>
-                    <Play size={18} fill="#fff" /> {isWatchParty ? "Επανεκκίνηση Ταινίας" : "Παρακολούθηση Τώρα"}
-                  </button>
-                  
-                  {!isWatchParty && (
-                    <button 
-                      className="primary-btn" 
-                      onClick={() => setIsWatchParty(true)}
-                      style={{ backgroundColor: '#0071eb' }}
-                    >
+                {/* ΤΑ ΔΥΟ ΚΟΥΜΠΙΑ */}
+                {!isWatchParty && (
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                    <button className="primary-btn" onClick={handleStartSoloWatch} style={{ backgroundColor: '#e50914' }}>
+                      <Play size={18} fill="#fff" /> Απλή Αναπαραγωγή
+                    </button>
+                    <button className="primary-btn" onClick={handleStartWatchParty} style={{ backgroundColor: '#1e40af' }}>
                       <Users size={18} /> Έναρξη Watch Party
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {isWatchParty && (
+                  <div style={{ marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-muted)' }}>
+                    <span>Κατάσταση:</span> 
+                    <strong style={{ color: '#fff' }}>
+                      {isPartyMode ? "👥 Watch Party Ενεργό" : "🎬 Προβολή Μόνος"}
+                    </strong>
+                    <span style={{ fontSize: '0.85rem', backgroundColor: '#222', padding: '3px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', color: '#ffd700' }}>
+                      <Trophy size={12} /> XP Active
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -175,13 +288,13 @@ function MovieDetails({ movieId, onBackToHome }) {
         </div>
       </main>
 
-      {/* ΔΕΞΙ ΜΕΡΟΣ: Social Chat Sidebar */}
-      {isWatchParty && (
+      {/* Live Chat Sidebar */}
+      {isWatchParty && isPartyMode && (
         <aside className="watch-sidebar" aria-label="Live Chat Δωματίου">
           <div className="chat-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Users size={18} style={{ color: 'var(--accent-blue)' }} />
-              <span>Watch Party Chat (3 μέλη)</span>
+              <span>Watch Party Chat (Συνδεδεμένος)</span>
             </div>
           </div>
 
@@ -192,6 +305,8 @@ function MovieDetails({ movieId, onBackToHome }) {
                 <div style={{ color: '#fff' }}>{msg.text}</div>
               </div>
             ))}
+            {/* 🛠️ Αόρατο div για να κατευθύνει το smooth scroll στο τέλος */}
+            <div ref={messagesEndRef} />
           </div>
 
           <form className="chat-input-container" onSubmit={handleSendMessage}>
@@ -201,9 +316,8 @@ function MovieDetails({ movieId, onBackToHome }) {
               placeholder="Γράψτε ένα μήνυμα..."
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              aria-label="Κείμενο μηνύματος συνομιλίας"
             />
-            <button type="submit" className="icon-btn" style={{ background: 'var(--accent-blue)', borderRadius: '4px' }} title="Αποστολή">
+            <button type="submit" className="icon-btn" style={{ background: 'var(--accent-blue)', borderRadius: '4px' }}>
               <Send size={16} />
             </button>
           </form>
