@@ -2,88 +2,206 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const mysql = require('mysql2');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"],
-    methods: ["GET", "POST"]
-}));
+app.use(cors());
+app.use(express.json()); // Απαραίτητο για να διαβάζει JSON δεδομένα (Register/Login)
 
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: {
-        origin: ["http://localhost:3000", "http://localhost:3001"],
-        methods: ["GET", "POST"]
-    }
+  cors: {
+    origin: "http://localhost:3000", // Το URL της React σου
+    methods: ["GET", "POST"]
+  }
 });
 
-// Ψεύτικη Βάση Δεδομένων στη μνήμη του Server για Χρήστες & Championship
-let usersDB = {
-    "user_1": { id: "user_1", name: "Ήφαιστος", avatar: "🔥", xp: 1250, rank: "Cinephile Master", watchedCount: 14, watchTime: 1680 },
-    "user_2": { id: "user_2", name: "Γιώργος (Πρωτανωπία)", avatar: "🕶️", xp: 980, rank: "Movie Buff", watchedCount: 10, watchTime: 1200 },
-    "user_3": { id: "user_3", name: "Κατερίνα (Cinephile)", avatar: "🍿", xp: 1420, rank: "Grandmaster", watchedCount: 19, watchTime: 2100 },
-    "user_4": { id: "user_4", name: "Μαρία", avatar: "🎬", xp: 640, rank: "Casual Viewer", watchedCount: 5, watchTime: 540 }
+const JWT_SECRET = "cineverse_super_secret_key_123";
+
+// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ ΜΥSQL (XAMPP)
+const db = mysql.createPool({
+  host: 'localhost',
+  user: 'root',      // Το default username του XAMPP
+  password: '',      // Το default password του XAMPP είναι κενό
+  database: 'cineverse_db',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+// Δοκιμαστικός έλεγχος σύνδεσης
+db.getConnection((err, connection) => {
+  if (err) {
+    console.error("❌ Σφάλμα σύνδεσης στη MySQL:", err.message);
+  } else {
+    console.log("🚀 Η σύνδεση με τη MySQL (cineverse_db) έγινε επιτυχώς!");
+    connection.release();
+  }
+});
+
+// Helper συνάρτηση για να τραβάμε το Leaderboard από τη βάση ανά πάσα στιγμή
+const emitLeaderboard = () => {
+  db.query('SELECT id, username AS name, avatar, xp, rank_title AS rank FROM users ORDER BY xp DESC LIMIT 10', (err, results) => {
+    if (!err) {
+      io.emit('leaderboard-update', results);
+    }
+  });
 };
 
-io.on('connection', (socket) => {
-    console.log(`👤 Χρήστης συνδέθηκε: ${socket.id}`);
 
-    // 1. Αποστολή των δεδομένων προφίλ και πρωταθλήματος μόλις συνδεθεί η React
-    socket.on('get-initial-data', (userId) => {
-        const currentUser = usersDB[userId] || usersDB["user_1"];
-        // Μετατροπή της DB σε πίνακα και ταξινόμηση με βάση τους πόντους (XP) για το Championship
-        const leaderboard = Object.values(usersDB).sort((a, b) => b.xp - a.xp);
-        
-        socket.emit('initial-data-res', {
-            profile: currentUser,
-            leaderboard: leaderboard
-        });
-    });
+// ==========================================
+// 🔐 REAL ENDPOINTS: REGISTER & LOGIN (HTTP)
+// ==========================================
 
-    // 2. Λειτουργία Watch Party & Συγχρονισμού
-    socket.on('join-room', (roomId) => {
-        socket.join(roomId);
-    });
+// 1. Πραγματικό Register (Εγγραφή)
+app.post('/api/register', async (req, res) => {
+  const { username, password, avatar } = req.body;
 
-    socket.on('video-control', (data) => {
-        socket.to(data.roomId).emit('video-control-client', data);
-    });
+  if (!username || !password) {
+    return res.status(400).json({ error: "Συμπληρώστε όνομα χρήστη και κωδικό!" });
+  }
 
-    socket.on('send-message', (data) => {
-        socket.to(data.roomId).emit('receive-message', data.message);
-        
-        // 🏆 Επιβράβευση: Κάθε φορά που ο χρήστης στέλνει μήνυμα στο Watch Party κερδίζει 10 XP!
-        if (usersDB[data.userId]) {
-            usersDB[data.userId].xp += 10;
-            // Ενημέρωση όλων για το νέο Leaderboard
-            const updatedLeaderboard = Object.values(usersDB).sort((a, b) => b.xp - a.xp);
-            io.emit('leaderboard-update', updatedLeaderboard);
-            socket.emit('profile-update', usersDB[data.userId]);
+  try {
+    // Έλεγχος αν υπάρχει ήδη ο χρήστης
+    db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
+      if (err) return res.status(500).json({ error: "Σφάλμα βάσης δεδομένων" });
+      if (results.length > 0) {
+        return res.status(400).json({ error: "Το όνομα χρήστη χρησιμοποιείται ήδη!" });
+      }
+
+      // Κρυπτογράφηση κωδικού (Hashing)
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
+      // Εισαγωγή στη MySQL
+      const userAvatar = avatar || '🔥';
+      db.query(
+        'INSERT INTO users (username, password, avatar) VALUES (?, ?, ?)',
+        [username, hashedPassword, userAvatar],
+        (err, insertResult) => {
+          if (err) return res.status(500).json({ error: "Αποτυχία εγγραφής στη βάση" });
+          
+          // Ενημέρωση όλων για το νέο leaderboard (αν χρειάζεται)
+          emitLeaderboard();
+          
+          return res.status(201).json({ message: "Η εγγραφή ολοκληρώθηκε επιτυχώς!" });
         }
+      );
     });
-
-    // 🏆 Λειτουργία προσθήκης XP (π.χ. όταν τελειώνει μια ταινία ή κερδίζει ένα mini-game)
-    socket.on('add-xp', ({ userId, amount }) => {
-        if (usersDB[userId]) {
-            usersDB[userId].xp += amount;
-            usersDB[userId].watchTime += Math.floor(amount / 2); // Αυξάνουμε εικονικά και το χρόνο
-            
-            // Αλλαγή τίτλου ανάλογα με τα XP
-            if (usersDB[userId].xp > 1500) usersDB[userId].rank = "Grandmaster";
-            else if (usersDB[userId].xp > 1000) usersDB[userId].rank = "Cinephile Master";
-            
-            const updatedLeaderboard = Object.values(usersDB).sort((a, b) => b.xp - a.xp);
-            io.emit('leaderboard-update', updatedLeaderboard);
-            socket.emit('profile-update', usersDB[userId]);
-        }
-    });
-
-    socket.on('disconnect', () => {
-        console.log(`❌ Χρήστης αποσυνδέθηκε`);
-    });
+  } catch (error) {
+    res.status(500).json({ error: "Σφάλμα διακομιστή" });
+  }
 });
 
+// 2. Πραγματικό Login (Σύνδεση)
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+
+  db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
+    if (err) return res.status(500).json({ error: "Σφάλμα βάσης δεδομένων" });
+    if (results.length === 0) {
+      return res.status(400).json({ error: "Λάθος όνομα χρήστη ή κωδικός πρόσβασης!" });
+    }
+
+    const user = results[0];
+
+    // Σύγκριση κρυπτογραφημένου κωδικού
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Λάθος όνομα χρήστη ή κωδικός πρόσβασης!" });
+    }
+
+    // Δημιουργία Token ασφαλείας (JWT)
+    const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+
+    // Επιστροφή στοιχείων στη React
+    return res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.username,
+        avatar: user.avatar,
+        xp: user.xp,
+        rank: user.rank_title
+      }
+    });
+  });
+});
+
+
+// ==========================================
+// 🌐 REAL-TIME WEBSOCKETS (SOCKET.IO)
+// ==========================================
+io.on('connection', (socket) => {
+  console.log(`👤 Χρήστης συνδέθηκε στο WebSocket: ${socket.id}`);
+
+  // Αρχικοποίηση δεδομένων όταν μπαίνει ένας χρήστης ή επισκέπτης
+  socket.on('get-initial-data', (userId) => {
+    // 1. Παίρνουμε το Leaderboard
+    db.query('SELECT id, username AS name, avatar, xp, rank_title AS rank FROM users ORDER BY xp DESC LIMIT 10', (err, leaderboardResults) => {
+      if (err) return;
+
+      // 2. Αν είναι συνδεδεμένος πραγματικός χρήστης (όχι guest), στέλνουμε και το profile του
+      if (userId && userId !== 'guest') {
+        db.query('SELECT id, username AS name, avatar, xp, rank_title AS rank FROM users WHERE id = ?', [userId], (err, profileResults) => {
+          if (!err && profileResults.length > 0) {
+            socket.emit('initial-data-res', {
+              profile: profileResults[0],
+              leaderboard: leaderboardResults
+            });
+          } else {
+            socket.emit('initial-data-res', { leaderboard: leaderboardResults });
+          }
+        });
+      } else {
+        // Αν είναι Guest, στέλνουμε μόνο το leaderboard
+        socket.emit('initial-data-res', { leaderboard: leaderboardResults });
+      }
+    });
+  });
+
+  // Προσθήκη πραγματικών XP στη βάση δεδομένων
+  socket.on('add-xp', ({ userId, amount }) => {
+    if (!userId || userId === 'guest') return;
+
+    // 1. Κάνουμε UPDATE στη MySQL
+    db.query('UPDATE users SET xp = xp + ? WHERE id = ?', [amount, userId], (err, result) => {
+      if (err) return;
+
+      // 2. Υπολογισμός και αναβάθμιση του Rank με βάση τα νέα XP
+      db.query('SELECT xp FROM users WHERE id = ?', [userId], (err, rows) => {
+        if (!err && rows.length > 0) {
+          const currentXp = rows[0].xp;
+          let newRank = 'Νεοσύλλεκτος Σινεφίλ';
+
+          if (currentXp >= 1000) newRank = 'Μέγας Κριτικός';
+          else if (currentXp >= 500) newRank = 'Σινεφίλ Pro';
+          else if (currentXp >= 200) newRank = 'Τακτικός Θεατής';
+
+          db.query('UPDATE users SET rank_title = ? WHERE id = ?', [newRank, userId], () => {
+            
+            // 3. Στέλνουμε το ενημερωμένο profile πίσω στον συγκεκριμένο χρήστη
+            socket.emit('profile-update', { xp: currentXp, rank: newRank });
+
+            // 4. Στέλνουμε το νέο Leaderboard σε ΟΛΟΥΣ τους συνδεδεμένους χρήστες real-time
+            emitLeaderboard();
+          });
+        }
+      });
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`❌ Χρήστης αποσυνδέθηκε: ${socket.id}`);
+  });
+});
+
+// Εκκίνηση του Server
 const PORT = 5000;
 server.listen(PORT, () => {
-    console.log(`🚀 Watch Party & Championship Server: http://localhost:${PORT}`);
+  console.log(`\n==============================================`);
+  console.log(`🎬 CINEVERSE SERVER RUNNING ON PORT ${PORT}`);
+  console.log(`==============================================`);
 });

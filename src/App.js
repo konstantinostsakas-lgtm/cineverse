@@ -53,22 +53,20 @@ function App() {
     };
     fetchMovies();
 
-    // 2. WebSockets: Σύνδεση με τον server ΜΟΝΟ αν ο χρήστης είναι συνδεδεμένος
-    // Αν είναι επισκέπτης, μπορούμε απλά να ζητήσουμε το leaderboard χωρίς να στείλουμε προφίλ
-    const targetUserId = user ? 'user_1' : 'guest';
+    // 2. WebSockets: Σύνδεση με τον server χρησιμοποιώντας το ΠΡΑΓΜΑΤΙΚΟ ID του χρήστη από τη MySQL
+    const targetUserId = user ? user.id : 'guest';
     socket.emit('get-initial-data', targetUserId); 
 
     socket.on('initial-data-res', (data) => {
       if (data.profile && user) {
-        const mergedProfile = { ...data.profile, name: user.name, avatar: user.avatar };
-        setUserProfile(mergedProfile);
+        setUserProfile(data.profile);
       }
       setLeaderboard(data.leaderboard || []);
     });
 
     socket.on('profile-update', (updatedProfile) => {
       if (user) {
-        setUserProfile(prev => ({ ...prev, ...updatedProfile, name: user.name, avatar: user.avatar }));
+        setUserProfile(prev => ({ ...prev, ...updatedProfile }));
       }
     });
 
@@ -86,6 +84,7 @@ function App() {
   // ΣΥΝΑΡΤΗΣΗ LOGOUT
   const handleLogout = () => {
     localStorage.removeItem('cineverse_user'); 
+    localStorage.removeItem('cineverse_token'); // Καθαρίζουμε και το JWT Token ασφαλείας
     setUser(null); 
     setUserProfile(null);
     setSelectedMovieId(null);
@@ -100,7 +99,8 @@ function App() {
 
   const handleSimulateXp = () => {
     if (!user) return alert('Πρέπει να συνδεθείτε για να κερδίσετε XP!');
-    socket.emit('add-xp', { userId: 'user_1', amount: 150 });
+    // Στέλνουμε το ΠΡΑΓΜΑΤΙΚΟ user.id της βάσης δεδομένων
+    socket.emit('add-xp', { userId: user.id, amount: 150 });
   };
 
   const handleMovieSelect = (id) => {
@@ -161,7 +161,7 @@ function App() {
         /* 🔐 ΣΕΛΙΔΑ LOGIN / REGISTER */
         <div style={{ marginTop: '2rem' }}>
           <Login onLoginSuccess={handleLoginSuccess} />
-          <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <div style={{ textAlignment: 'center', marginTop: '1rem' }}>
             <button onClick={() => setCurrentPage('home')} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', textDecoration: 'underline' }}>
               Επιστροφή ως Επισκέπτης
             </button>
@@ -190,14 +190,14 @@ function App() {
           
           <div style={{ backgroundColor: '#111', borderRadius: '12px', border: '1px solid #222', overflow: 'hidden' }}>
             {leaderboard.map((u, index) => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: index !== leaderboard.length - 1 ? '1px solid #222' : 'none', backgroundColor: user && u.id === 'user_1' ? 'rgba(30,64,175,0.15)' : 'transparent' }}>
+              <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem', borderBottom: index !== leaderboard.length - 1 ? '1px solid #222' : 'none', backgroundColor: user && u.id === user.id ? 'rgba(30,64,175,0.15)' : 'transparent' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <span style={{ fontSize: '1.2rem', fontWeight: 800, width: '30px', color: index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#666' }}>
                     #{index + 1}
                   </span>
-                  <span style={{ fontSize: '2rem' }}>{(user && u.id === 'user_1') ? user.avatar : u.avatar}</span>
+                  <span style={{ fontSize: '2rem' }}>{u.avatar}</span>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{(user && u.id === 'user_1') ? user.name : u.name} {(user && u.id === 'user_1') && <span style={{ fontSize: '0.8rem', color: 'var(--accent-blue)' }}>(Εσείς)</span>}</div>
+                    <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{u.name} {user && u.id === user.id && <span style={{ fontSize: '0.8rem', color: 'var(--accent-blue)' }}>(Εσείς)  </span>}</div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{u.rank}</div>
                   </div>
                 </div>
@@ -207,7 +207,7 @@ function App() {
           </div>
         </div>
       ) : (
-        /* 🎬 ΑΡΧΙΚΗ ΣΕΛΙΔΑ (Ταινίες, Αναζήτηση, Κατηγορίες - Προσβάσιμη σε όλους!) */
+        /* 🎬 ΑΡΧΙΚΗ ΣΕΛΙΔΑ */
         selectedMovieId ? (
           <MovieDetails movieId={selectedMovieId} onBackToHome={() => setSelectedMovieId(null)} />
         ) : (
