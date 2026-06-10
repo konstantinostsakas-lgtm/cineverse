@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 
-// 🔓 ΡΥΘΜΙΣΗ CORS ΓΙΑ PRODUCTION & LOCALHOST
+// 🔓 ΡΥΘΜΙΣΗ CORS ΓΙΑ PRODUCTION & https://cineverse-4vkd.onrender.com
 app.use(cors({
   origin: "*", // Επιτρέπει στη live React (Vercel) να επικοινωνεί με το backend
   methods: ["GET", "POST"]
@@ -28,9 +28,9 @@ const io = new Server(server, {
 // 🔐 ΠΡΑΓΜΑΤΙΚΟ PRODUCTION SECRET (Μέσω Environment Variables)
 const JWT_SECRET = process.env.JWT_SECRET || "CINEVERSE_PRODUCTION_SECURE_KEY_894320984";
 
-// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ ΜΥSQL (Υποστηρίζει Localhost ΚΑΙ Live Database)
+// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ ΜΥSQL (Υποστηρίζει https://cineverse-4vkd.onrender.com ΚΑΙ Live Database)
 const db = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || 'https://cineverse-4vkd.onrender.com',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_DATABASE || 'cineverse_db',

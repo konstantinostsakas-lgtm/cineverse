@@ -100,7 +100,7 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
   // Αποστολή αιτήματος φιλίας στο API
   const sendFriendRequest = async (receiverId) => {
     try {
-      const res = await fetch('http://localhost:5000/api/friends/request', {
+      const res = await fetch('http://https://cineverse-4vkd.onrender.com:5000/api/friends/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ senderId: currentUserId, receiverId })
@@ -123,7 +123,7 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
   // Απάντηση σε αίτημα (Accept / Reject) στο API
   const handleRespond = async (friendshipId, action) => {
     try {
-      await fetch('http://localhost:5000/api/friends/respond', {
+      await fetch('http://https://cineverse-4vkd.onrender.com:5000/api/friends/respond', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ friendshipId, action })

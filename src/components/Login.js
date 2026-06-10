@@ -65,7 +65,7 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
   useEffect(() => {
     const fetchAvatars = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/avatars');
+        const response = await fetch('http://https://cineverse-4vkd.onrender.com:5000/api/avatars');
         if (response.ok) {
           const data = await response.json();
           setAvatars(data.avatars || []);
@@ -96,7 +96,7 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
     try {
       if (isRegisterMode) {
         // --- ΠΡΑΓΜΑΤΙΚΟ REGISTER ΣΤΟ BACKEND ---
-        const response = await fetch('http://localhost:5000/api/register', {
+        const response = await fetch('http://https://cineverse-4vkd.onrender.com:5000/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password, avatar: selectedAvatar })
@@ -113,7 +113,7 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
         setPassword('');
       } else {
         // --- ΠΡΑΓΜΑΤΙΚΟ LOGIN ΣΤΟ BACKEND ---
-        const response = await fetch('http://localhost:5000/api/login', {
+        const response = await fetch('http://https://cineverse-4vkd.onrender.com:5000/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Send, Calendar, Clock, Star, Play, X, Check } from 'lucide-react';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5000', { autoConnect: false });
+const socket = io('http://https://cineverse-4vkd.onrender.com:5000', { autoConnect: false });
 
 const COMPONENT_STRINGS = {
   el: {
@@ -83,7 +83,7 @@ function MovieDetails({ movieId, onBackToHome, onStartWatchParty, currentUserId,
           });
         }
         if (currentUserId && currentUserId !== 'guest') {
-          const friendsRes = await fetch(`http://localhost:5000/api/friends/list/${currentUserId}`);
+          const friendsRes = await fetch(`http://https://cineverse-4vkd.onrender.com:5000/api/friends/list/${currentUserId}`);
           const friendsData = await friendsRes.json();
           setFriends(friendsData);
         }
