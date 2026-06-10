@@ -49,12 +49,12 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
     if (!currentUserId || currentUserId === 'guest') return;
     try {
       // Φόρτωση Λίστας Φίλων
-      const friendsRes = await fetch(`http://localhost:5000/api/friends/list/${currentUserId}`);
+     const friendsRes = await fetch(`https://cineverse-4vkd.onrender.com/api/friends/list/${currentUserId}`);
       const friendsData = await friendsRes.json();
       setFriends(friendsData);
 
       // Φόρτωση Εκκρεμών Αιτημάτων
-      const pendingRes = await fetch(`http://localhost:5000/api/friends/pending/${currentUserId}`);
+      const pendingRes = await fetch(`https://cineverse-4vkd.onrender.com/api/friends/pending/${currentUserId}`);
       const pendingData = await pendingRes.json();
       setPendingRequests(pendingData);
     } catch (err) {
@@ -86,7 +86,7 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
         return;
       }
       try {
-        const res = await fetch(`http://localhost:5000/api/users/search?q=${searchQuery}&currentUserId=${currentUserId}`);
+       const res = await fetch(`https://cineverse-4vkd.onrender.com/api/users/search?q=${searchQuery}&currentUserId=${currentUserId}`);
         const data = await res.json();
         setSearchResults(data);
       } catch (err) {

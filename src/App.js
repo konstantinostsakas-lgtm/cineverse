@@ -12,7 +12,7 @@ import FriendsPanel from './components/FriendsPanel';
 import { io } from 'socket.io-client';
 
 // 📡 Σύνδεση με το Live Node.js Backend Server
-const socket = io('http://localhost:5000');
+const socket = io('https://cineverse-4vkd.onrender.com');
 
 // 🌐 ΛΕΞΙΚΟ ΜΕΤΑΦΡΑΣΕΩΝ (ΜΟΝΟ ΕΛΛΗΝΙΚΑ & ΑΓΓΛΙΚΑ)
 const UI_STRINGS = {
