@@ -55,7 +55,6 @@ function AccessibilityModal({
               <Type size={18} />
               <span>Μέγεθος Κειμένου</span>
             </div>
-            {/* ΔΙΟΡΘΩΣΗ: Μετατροπή σε camelCase -> gridTemplateColumns αντί για gridTemplate-columns */}
             <div className="btn-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
               <button 
                 className={`settings-btn ${fontSize === 1 ? 'active' : ''}`}

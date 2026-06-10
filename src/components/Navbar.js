@@ -1,58 +1,87 @@
 import React from 'react';
-import { Search, ShieldAlert, Trophy, Home } from 'lucide-react'; // Εισαγωγή σύγχρονων εικονιδίων για οπτικό feedback
+import { Search, Accessibility, Trophy, Home } from 'lucide-react'; // Αντικατάσταση ShieldAlert με Accessibility
 
-function Navbar({ onNavigate, searchQuery, setSearchQuery, onOpenAccessibility }) {
+function Navbar({ onNavigate, searchQuery = '', setSearchQuery, onOpenAccessibility }) {
   return (
-    <nav className="navbar" aria-label="Κεντρική Πλοήγηση">
-      {/* Λογότυπο Εφαρμογής - HCI: 📸 Οπτική Αναγνωρισιμότητα & Shortcut για την Αρχική */}
-      <div className="nav-logo" onClick={() => onNavigate('home')} role="button" tabIndex={0}>
+    <nav className="navbar" aria-label="Κεντρική Πλοήγηση" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem', backgroundColor: '#0b0b12', borderBottom: '1px solid #222' }}>
+      
+      {/* Λογότυπο Εφαρμογής - HCI: Οπτική Αναγνωρισιμότητα & Shortcut για την Αρχική */}
+      <div 
+        className="nav-logo" 
+        onClick={() => onNavigate && onNavigate('home')} 
+        role="button" 
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && onNavigate) {
+            onNavigate('home');
+          }
+        }}
+        style={{ fontSize: '1.6rem', fontWeight: 900, letterSpacing: '1px', cursor: 'pointer', color: '#fff', outline: 'none' }}
+      >
         CINEVERSE
       </div>
 
       {/* Διαδραστικά Στοιχεία: Αναζήτηση και Μενού */}
-      <div className="nav-actions">
-        {/* Μπάρα Αναζήτησης - Σενάριο Εργασίας */}
-        <div className="search-container">
-          <Search className="search-icon" size={18} />
+      <div className="nav-actions" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+        
+        {/* Μπάρα Αναζήτησης - Σύνδεση με Live API */}
+        <div className="search-container" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <Search className="search-icon" size={18} style={{ position: 'absolute', left: '12px', color: '#666' }} />
           <input
             type="text"
             className="search-input"
             placeholder="Αναζήτηση ταινιών..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery && setSearchQuery(e.target.value)}
             aria-label="Αναζήτηση τίτλων ταινιών"
+            style={{ padding: '0.5rem 1rem 0.5rem 2.5rem', backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', color: '#fff', outline: 'none' }}
           />
         </div>
 
         {/* Κουμπί Αρχικής Σελίδας */}
         <button 
           className="icon-btn" 
-          onClick={() => onNavigate('home')} 
+          onClick={() => onNavigate && onNavigate('home')} 
           title="Αρχική Σελίδα"
           aria-label="Μετάβαση στην αρχική σελίδα"
+          style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
         >
           <Home size={22} />
         </button>
 
-        {/* Κουμπί Leaderboard - Ενσωμάτωση Gamification από GreekFlix */}
+        {/* Κουμπί Leaderboard - Ενσωμάτωση Real Gamification */}
         <button 
           className="icon-btn" 
-          onClick={() => onNavigate('leaderboard')} 
+          onClick={() => onNavigate && onNavigate('championship')} // Δυναμική μετάβαση στο live championship
           title="Championship Leaderboard"
           aria-label="Προβολή πίνακα κατάταξης"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
         >
-          <Trophy size={22} style={{ color: '#ffd700' }} /> {/* Χρυσό χρώμα για το trophy feedback */}
+          <Trophy size={22} style={{ color: '#ffd700' }} />
         </button>
 
-        {/* Κουμπί Προσβασιμότητας - Ενσωμάτωση Inclusive Design από GreekFlix */}
+        {/* Κουμπί Προσβασιμότητας - Inclusive Design */}
         <button 
           className="icon-btn" 
           onClick={onOpenAccessibility} 
           title="Ρυθμίσεις Προσβασιμότητας (WCAG 2.1 AA)"
           aria-label="Άνοιγμα επιλογών προσβασιμότητας"
-          style={{ border: '1px solid #444', padding: '6px' }}
+          style={{ 
+            background: 'none', 
+            border: '1px solid #0071eb', 
+            padding: '6px', 
+            borderRadius: '50%', 
+            cursor: 'pointer', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 113, 235, 0.1)',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 113, 235, 0.25)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 113, 235, 0.1)'}
         >
-          <ShieldAlert size={22} style={{ color: '#0071eb' }} />
+          <Accessibility size={22} style={{ color: '#0071eb' }} />
         </button>
       </div>
     </nav>

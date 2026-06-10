@@ -1,16 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Film, LogIn, UserPlus, Lock, User } from 'lucide-react';
 
-function Login({ onLoginSuccess }) {
+// 🌐 ΤΟΠΙΚΟ ΛΕΞΙΚΟ ΜΕΤΑΦΡΑΣΕΩΝ (ΑΠΟΚΛΕΙΣΤΙΚΑ ΕΛΛΗΝΙΚΑ & ΑΓΓΛΙΚΑ)
+const COMPONENT_STRINGS = {
+  el: {
+    titleRegister: "Δημιουργία Λογαριασμού",
+    titleLogin: "Είσοδος Μέλους",
+    subRegister: "Γίνε μέλος του Championship και κέρδισε XP.",
+    subLogin: "Συνδέσου για να ξεκινήσεις τα Watch Parties.",
+    emptyFieldsError: "Παρακαλώ συμπληρώστε όλα τα πεδία.",
+    genericRegisterError: "Αποτυχία εγγραφής",
+    genericLoginError: "Λάθος στοιχεία σύνδεσης",
+    registerSuccess: "Η εγγραφή έγινε επιτυχώς! Μπορείτε να συνδεθείτε.",
+    labelUsername: "Όνομα Χρήστη",
+    labelPassword: "Κωδικός Πρόσβασης",
+    labelAvatar: "Επιλογή Avatar",
+    btnLoading: "Παρακαλώ περιμένετε...",
+    btnRegister: "Δημιουργία Λογαριασμού",
+    btnLogin: "Σύνδεση",
+    switchTextRegister: "Έχετε ήδη λογαριασμό;",
+    switchTextLogin: "Δεν έχετε λογαριασμό;",
+    switchBtnRegister: "Συνδεθείτε εδώ",
+    switchBtnLogin: "Εγγραφείτε τώρα",
+    avatarFetchError: "Σφάλμα κατά την ανάκτηση των avatars:"
+  },
+  en: {
+    titleRegister: "Create Account",
+    titleLogin: "Member Login",
+    subRegister: "Join the Championship and earn XP.",
+    subLogin: "Log in to start Watch Parties.",
+    emptyFieldsError: "Please fill in all fields.",
+    genericRegisterError: "Registration failed",
+    genericLoginError: "Incorrect login credentials",
+    registerSuccess: "Registration successful! You can now log in.",
+    labelUsername: "Username",
+    labelPassword: "Password",
+    labelAvatar: "Select Avatar",
+    btnLoading: "Please wait...",
+    btnRegister: "Create Account",
+    btnLogin: "Log In",
+    switchTextRegister: "Already have an account?",
+    switchTextLogin: "Don't have an account?",
+    switchBtnRegister: "Log in here",
+    switchBtnLogin: "Register now",
+    avatarFetchError: "Error fetching avatars:"
+  }
+};
+
+function Login({ onLoginSuccess, currentLang = 'el' }) {
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState('🔥');
+  const [avatars, setAvatars] = useState([]); 
+  const [selectedAvatar, setSelectedAvatar] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const avatars = ['🔥', '🎬', '🍿', '🐉', '👾', '🚀', '🧙‍♂️', '🐱'];
+  // 🌍 Επιλογή της σωστής γλώσσας
+  const localLang = currentLang === 'en' ? 'en' : 'el';
+  const strings = COMPONENT_STRINGS[localLang];
+
+  // Ανάκτηση των πραγματικών διαθέσιμων avatars από το backend κατά το mount
+  useEffect(() => {
+    const fetchAvatars = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/avatars');
+        if (response.ok) {
+          const data = await response.json();
+          setAvatars(data.avatars || []);
+          if (data.avatars && data.avatars.length > 0) {
+            setSelectedAvatar(data.avatars[0]);
+          }
+        }
+      } catch (error) {
+        console.error(strings.avatarFetchError, error);
+        setSelectedAvatar('');
+      }
+    };
+    fetchAvatars();
+  }, [strings.avatarFetchError]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,7 +87,7 @@ function Login({ onLoginSuccess }) {
     setSuccessMessage('');
 
     if (!username.trim() || !password.trim()) {
-      setErrorMessage('Παρακαλώ συμπληρώστε όλα τα πεδία.');
+      setErrorMessage(strings.emptyFieldsError);
       return;
     }
 
@@ -36,10 +105,10 @@ function Login({ onLoginSuccess }) {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Αποτυχία εγγραφής');
+          throw new Error(data.error || strings.genericRegisterError);
         }
 
-        setSuccessMessage('Η εγγραφή έγινε επιτυχώς! Μπορείτε να συνδεθείτε.');
+        setSuccessMessage(strings.registerSuccess);
         setIsRegisterMode(false); // Γυρνάει αυτόματα στο Login
         setPassword('');
       } else {
@@ -53,10 +122,10 @@ function Login({ onLoginSuccess }) {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Λάθος στοιχεία σύνδεσης');
+          throw new Error(data.error || strings.genericLoginError);
         }
 
-        // Αποθηκεύουμε το token και τα στοιχεία του χρήστη που ήρθαν από τη MySQL
+        // Αποθήκευση των πραγματικών στοιχείων από τη MySQL
         localStorage.setItem('cineverse_token', data.token);
         localStorage.setItem('cineverse_user', JSON.stringify(data.user));
         
@@ -79,10 +148,10 @@ function Login({ onLoginSuccess }) {
         </div>
 
         <h2 style={{ marginBottom: '0.5rem', fontSize: '1.4rem' }}>
-          {isRegisterMode ? 'Δημιουργία Λογαριασμού' : 'Είσοδος Μέλους'}
+          {isRegisterMode ? strings.titleRegister : strings.titleLogin}
         </h2>
         <p style={{ color: '#666', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-          {isRegisterMode ? 'Γίνε μέλος του Championship και κέρδισε XP.' : 'Συνδέσου για να ξεκινήσεις τα Watch Parties.'}
+          {isRegisterMode ? strings.subRegister : strings.subLogin}
         </p>
 
         {errorMessage && <div style={{ backgroundColor: 'rgba(229, 9, 20, 0.1)', color: '#e50914', border: '1px solid #e50914', padding: '0.6rem', borderRadius: '6px', fontSize: '0.9rem', marginBottom: '1rem', textAlign: 'left' }}>⚠️ {errorMessage}</div>}
@@ -91,12 +160,12 @@ function Login({ onLoginSuccess }) {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
           
           <div style={{ textAlign: 'left' }}>
-            <label style={{ display: 'block', fontSize: '0.8rem', color: '#aaa', marginBottom: '0.4rem', fontWeight: 600 }}>Όνομα Χρήστη</label>
+            <label style={{ display: 'block', fontSize: '0.8rem', color: '#aaa', marginBottom: '0.4rem', fontWeight: 600 }}>{strings.labelUsername}</label>
             <div style={{ position: 'relative' }}>
               <User size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#555' }} />
               <input 
                 type="text" 
-                placeholder="Username" 
+                placeholder={strings.labelUsername} 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isLoading}
@@ -107,7 +176,7 @@ function Login({ onLoginSuccess }) {
           </div>
 
           <div style={{ textAlign: 'left' }}>
-            <label style={{ display: 'block', fontSize: '0.8rem', color: '#aaa', marginBottom: '0.4rem', fontWeight: 600 }}>Κωδικός Πρόσβασης</label>
+            <label style={{ display: 'block', fontSize: '0.8rem', color: '#aaa', marginBottom: '0.4rem', fontWeight: 600 }}>{strings.labelPassword}</label>
             <div style={{ position: 'relative' }}>
               <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#555' }} />
               <input 
@@ -122,9 +191,10 @@ function Login({ onLoginSuccess }) {
             </div>
           </div>
 
-          {isRegisterMode && (
+          {/* Real-time εμφάνιση των Avatars από τη βάση δεδομένων */}
+          {isRegisterMode && avatars.length > 0 && (
             <div style={{ textAlign: 'left' }}>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: '#aaa', marginBottom: '0.4rem', fontWeight: 600 }}>Επιλογή Avatar</label>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: '#aaa', marginBottom: '0.4rem', fontWeight: 600 }}>{strings.labelAvatar}</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
                 {avatars.map((avatar) => (
                   <button
@@ -155,13 +225,13 @@ function Login({ onLoginSuccess }) {
             style={{ width: '100%', padding: '0.8rem', backgroundColor: isRegisterMode ? '#1e40af' : '#e50914', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '0.5rem', opacity: isLoading ? 0.7 : 1 }}
           >
             {isRegisterMode ? <UserPlus size={18} /> : <LogIn size={18} />}
-            {isLoading ? 'Παρακαλώ περιμένετε...' : isRegisterMode ? 'Δημιουργία Λογαριασμού' : 'Σύνδεση'}
+            {isLoading ? strings.btnLoading : (isRegisterMode ? strings.btnRegister : strings.btnLogin)}
           </button>
 
         </form>
 
         <div style={{ marginTop: '1.5rem', fontSize: '0.9rem', color: '#aaa' }}>
-          {isRegisterMode ? 'Έχετε ήδη λογαριασμό;' : 'Δεν έχετε λογαριασμό;'}
+          {isRegisterMode ? strings.switchTextRegister : strings.switchTextLogin}
           <button 
             type="button"
             onClick={() => {
@@ -172,7 +242,7 @@ function Login({ onLoginSuccess }) {
             disabled={isLoading}
             style={{ background: 'none', border: 'none', color: '#e50914', marginLeft: '5px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}
           >
-            {isRegisterMode ? 'Συνδεθείτε εδώ' : 'Εγγραφείτε τώρα'}
+            {isRegisterMode ? strings.switchBtnRegister : strings.switchBtnLogin}
           </button>
         </div>
 

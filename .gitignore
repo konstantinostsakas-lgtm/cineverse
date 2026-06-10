@@ -9,6 +9,7 @@
 
 # misc
 .DS_Store
+.env                 # <--- ΚΡΙΣΙΜΟ: Κρύβει το βασικό αρχείο με το πραγματικό TMDB_API_KEY
 .env.local
 .env.development.local
 .env.test.local

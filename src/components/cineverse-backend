@@ -1,17 +1,28 @@
-// Ένα απλό παράδειγμα του server κώδικα
+// Real-time synchronization server core handler (Socket.io)
 io.on('connection', (socket) => {
-  // Όταν ένας χρήστης μπαίνει σε ένα δωμάτιο ταινίας
+  
+  // 1. Είσοδος χρήστη σε συγκεκριμένο live δωμάτιο ταινίας
   socket.on('join-room', (roomId) => {
-    socket.join(roomId);
+    if (roomId) {
+      socket.join(roomId);
+    }
   });
 
-  // Όταν κάποιος ελέγχει το βίντεο (Play/Pause/Seek)
+  // 2. Real-time συγχρονισμός του video player (Play / Pause / Seek) μεταξύ των χρηστών
   socket.on('video-control', ({ roomId, action, currentTime }) => {
-    socket.to(roomId).emit('video-control-client', { action, currentTime });
+    if (roomId && action) {
+      socket.to(roomId).emit('video-control-client', { 
+        action, 
+        currentTime: currentTime || 0 
+      });
+    }
   });
 
-  // Όταν κάποιος στέλνει μήνυμα
+  // 3. Άμεση προώθηση πραγματικών μηνυμάτων συνομιλίας (Live Chat Stream)
   socket.on('send-message', ({ roomId, message }) => {
-    socket.to(roomId).emit('receive-message', message);
+    if (roomId && message) {
+      socket.to(roomId).emit('receive-message', message);
+    }
   });
+
 });
