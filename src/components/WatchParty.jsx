@@ -40,14 +40,15 @@ const iceConfig = {
   ]
 };
 
-// Χρησιμοποιούμε το movieId για να ταυτίζεται με τη βάση και το backend
-function WatchParty({ movieId, user, socket, movieUrl, currentLang = 'el' }) {
+// 🌟 Προστέθηκε το onBack στα props για να ελέγχουμε την επιστροφή από τον γονέα (parent component)
+function WatchParty({ movieId, user, socket, movieUrl, currentLang = 'el', onBack }) {
   const [peers, setPeers] = useState([]);
   const [micActive, setMicActive] = useState(true);
   const [videoActive, setVideoActive] = useState(true);
   const [showChat, setShowChat] = useState(true);
   const [messages, setMessages] = useState([]);
   const [typedMessage, setTypedMessage] = useState('');
+  const [cameraError, setCameraError] = useState(false); // State για το custom pop-up
   
   // 🌍 Επιλογή γλώσσας
   const strings = COMPONENT_STRINGS[currentLang === 'en' ? 'en' : 'el'];
@@ -113,7 +114,7 @@ function WatchParty({ movieId, user, socket, movieUrl, currentLang = 'el' }) {
     })
     .catch(err => {
       console.error("Σφάλμα στην κάμερα/μικρόφωνο:", err);
-      alert(strings.cameraAlert);
+      setCameraError(true); // Εμφάνιση του custom pop-up αντί για alert
     });
 
     socket.on('receive-party-message', (msgObj) => {
@@ -150,7 +151,6 @@ function WatchParty({ movieId, user, socket, movieUrl, currentLang = 'el' }) {
   }, [messages]);
 
   function createPeer(userToSignal, callerId, stream) {
-    // Προσθήκη config εδώ
     const peer = new Peer({ initiator: true, trickle: false, stream, config: iceConfig });
     peer.on('signal', (signal) => {
       socket.emit('webrtc-offer', { 
@@ -161,12 +161,11 @@ function WatchParty({ movieId, user, socket, movieUrl, currentLang = 'el' }) {
         offer: signal 
       });
     });
-    peer.userId = userToSignal; // Helper για το κλείσιμο
+    peer.userId = userToSignal;
     return peer;
   }
 
   function addPeer(incomingSignal, callerId, stream) {
-    // Προσθήκη config εδώ
     const peer = new Peer({ initiator: false, trickle: false, stream, config: iceConfig });
     peer.on('signal', (signal) => {
       socket.emit('webrtc-answer', { targetSocketId: callerId, answer: signal });
@@ -210,13 +209,32 @@ function WatchParty({ movieId, user, socket, movieUrl, currentLang = 'el' }) {
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 70px)', backgroundColor: '#000', position: 'relative', overflow: 'hidden' }}>
-      {/* NAVIGATION BAR - Προσθήκη */}
+      
+      {/* CUSTOM POP-UP ΕΙΔΟΠΟΙΗΣΗ ΓΙΑ ΑΔΕΙΑ ΚΑΜΕΡΑΣ */}
+      {cameraError && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '12px', width: '100%', maxWidth: '400px', padding: '2rem', textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            <VideoOff size={44} color="#e50914" style={{ marginBottom: '1.2rem' }} />
+            <h3 style={{ color: '#fff', margin: '0 0 1rem 0', fontSize: '1.25rem' }}>
+              {currentLang === 'en' ? 'Camera Access Required' : 'Απαιτείται Πρόσβαση στην Κάμερα'}
+            </h3>
+            <p style={{ color: '#aaa', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '1.8rem' }}>{strings.cameraAlert}</p>
+            <button 
+              onClick={() => setCameraError(false)} 
+              style={{ background: '#e50914', color: '#fff', border: 'none', padding: '10px 25px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem', transition: 'background 0.2s' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#b9090b'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#e50914'}
+            >
+              {currentLang === 'en' ? 'Understood' : 'Εντάξει'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* NAVIGATION BAR - Συνδέθηκε το onBack στο κουμπί */}
       <div style={{ position: 'absolute', top: '10px', left: '20px', zIndex: 10, display: 'flex', gap: '15px' }}>
-        <button onClick={() => window.history.back()} style={{ background: '#222', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <button onClick={onBack} style={{ background: '#222', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
           <ArrowLeft size={16} /> {strings.goBack}
-        </button>
-        <button onClick={() => window.location.href = '/friends'} style={{ background: '#222', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <Users size={16} /> {strings.friends}
         </button>
       </div>
 

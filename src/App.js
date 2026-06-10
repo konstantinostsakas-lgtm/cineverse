@@ -128,7 +128,6 @@ function App() {
 
   // 🌐 TRANSLATION STATES
   const [currentLang, setCurrentLang] = useState(() => {
-    // Αν η αποθηκευμένη γλώσσα ήταν τα ισπανικά, κάνει fallback στα ελληνικά
     const savedLang = localStorage.getItem('cineverse_lang');
     return savedLang === 'es' ? 'el' : (savedLang || 'el');
   });
@@ -171,7 +170,6 @@ function App() {
   useEffect(() => {
     const fetchMovies = async () => {
       try {
-        // ✅ Αφαιρέθηκαν τα Ισπανικά από το API mapping
         const tmdbLang = currentLang === 'en' ? 'en-US' : 'el-GR';
         
         let url = `https://api.themoviedb.org/3/movie/popular?api_key=${API_KEY}&language=${tmdbLang}&page=1`;
@@ -453,7 +451,6 @@ function App() {
 
             {showTranslateMenu && (
               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '10px', backgroundColor: '#181824', width: '180px', padding: '0.5rem', borderRadius: '10px', border: '1px solid #333', boxShadow: '0 8px 24px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 10000 }}>
-                {/* ✅ Αφαιρέθηκαν τα Ισπανικά από τη λίστα επιλογών */}
                 {[
                   { id: 'el', name: '🇬🇷 Ελληνικά' },
                   { id: 'en', name: '🇬🇧 English' }
@@ -570,6 +567,7 @@ function App() {
                 user={{ id: user.id, name: userProfile?.name || user.name, avatar: userProfile?.avatar || user.avatar }} 
                 socket={socket} 
                 movieUrl={`https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`} 
+                onBack={() => setIsWatchPartyActive(false)} // 👈 ΕΔΩ ΠΡΟΣΤΕΘΗΚΕ Η ΕΠΙΣΤΡΟΦΗ!
               />
             ) : (
               <MovieDetails 

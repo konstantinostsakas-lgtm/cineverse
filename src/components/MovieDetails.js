@@ -111,10 +111,20 @@ function MovieDetails({ movieId, onBackToHome, onStartWatchParty, currentUserId,
   const handleStartSoloWatch = () => { setIsWatchParty(true); setIsPartyMode(false); };
   const handleStartWatchPartyClick = () => { setShowFriendSelector(true); };
 
+  // Διαχείριση επιλογής/αποεπιλογής φίλου
+  const handleToggleFriend = (friendId) => {
+    setSelectedFriends(prev =>
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
+  };
+
   const confirmAndStartParty = () => {
     setShowFriendSelector(false);
     if (onStartWatchParty) {
-      onStartWatchParty(movieId);
+      // Περνάμε και τους επιλεγμένους φίλους στο Watch Party component
+      onStartWatchParty(movieId, selectedFriends);
     } else {
       setIsWatchParty(true);
       setIsPartyMode(true);
@@ -145,9 +155,52 @@ function MovieDetails({ movieId, onBackToHome, onStartWatchParty, currentUserId,
               <h3 style={{ margin: 0, color: '#fff' }}>{strings.inviteFriends}</h3>
               <X onClick={() => setShowFriendSelector(false)} style={{ cursor: 'pointer', color: '#666' }} />
             </div>
-            {/* Friends list map... */}
-            <button onClick={confirmAndStartParty} style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: 'none', backgroundColor: '#e50914', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>
-              {strings.confirmParty}
+            
+            {/* ΛΙΣΤΑ ΦΙΛΩΝ (SCROLLABLE) */}
+            <div style={{ maxHeight: '260px', overflowY: 'auto', marginBottom: '1.5rem', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '5px' }}>
+              {friends && friends.length > 0 ? (
+                friends.map(friend => {
+                  const isSelected = selectedFriends.includes(friend.id);
+                  return (
+                    <div
+                      key={friend.id}
+                      onClick={() => handleToggleFriend(friend.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        backgroundColor: isSelected ? '#1c1c1c' : '#141414',
+                        border: isSelected ? '1px solid #e50914' : '1px solid #252525',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <img 
+                          src={friend.avatar || 'https://via.placeholder.com/40'} 
+                          alt={friend.name} 
+                          style={{ width: '35px', height: '35px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #333' }} 
+                        />
+                        <span style={{ color: '#fff', fontWeight: '500', fontSize: '0.95rem' }}>{friend.name}</span>
+                      </div>
+                      {isSelected && <Check size={18} color="#e50914" strokeWidth={3} />}
+                    </div>
+                  );
+                })
+              ) : (
+                <p style={{ color: '#666', textAlign: 'center', margin: '1.5rem 0', fontSize: '0.9rem' }}>{strings.noFriends}</p>
+              )}
+            </div>
+
+            <button 
+              onClick={confirmAndStartParty} 
+              style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: 'none', backgroundColor: '#e50914', color: '#fff', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s' }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#b9090b'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#e50914'}
+            >
+              {strings.confirmParty} {selectedFriends.length > 0 && `(${selectedFriends.length})`}
             </button>
           </div>
         </div>
@@ -160,7 +213,6 @@ function MovieDetails({ movieId, onBackToHome, onStartWatchParty, currentUserId,
               <ArrowLeft size={18} /> {strings.backHome}
             </button>
 
-            {/* ΣΤΑΤΙΚΟ PLACEHOLDER ΑΝΤΙ ΓΙΑ PLAYER */}
             {isWatchParty && (
               <div style={{ width: '100%', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#000', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #444' }}>
                  <p style={{ color: '#666' }}>Video Player Placeholder (Static Mode)</p>
