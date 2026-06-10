@@ -7,13 +7,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors());
+
+// 🔓 ΡΥΘΜΙΣΗ CORS ΓΙΑ PRODUCTION & LOCALHOST
+app.use(cors({
+  origin: "*", // Επιτρέπει στη live React (Vercel) να επικοινωνεί με το backend
+  methods: ["GET", "POST"]
+}));
 app.use(express.json());
 
 const server = http.createServer(app);
+
+// 📡 ΡΥΘΜΙΣΗ SOCKET.IO ΓΙΑ ΟΛΑ ΤΑ DOMAINS
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*", 
     methods: ["GET", "POST"]
   }
 });
@@ -21,20 +28,22 @@ const io = new Server(server, {
 // 🔐 ΠΡΑΓΜΑΤΙΚΟ PRODUCTION SECRET (Μέσω Environment Variables)
 const JWT_SECRET = process.env.JWT_SECRET || "CINEVERSE_PRODUCTION_SECURE_KEY_894320984";
 
-// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ ΜΥSQL (Live Connection Pool)
+// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ ΜΥSQL (Υποστηρίζει Localhost ΚΑΙ Live Database)
 const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_DATABASE || 'cineverse_db',
+  port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 });
 
 db.getConnection((err, connection) => {
-  if (err) console.error("❌ Σφάλμα σύνδεσης στη MySQL:", err.message);
-  else { 
+  if (err) {
+    console.error("❌ Σφάλμα σύνδεσης στη MySQL:", err.message);
+  } else { 
     console.log("🚀 Η σύνδεση με τη MySQL έγινε επιτυχώς!"); 
     connection.release(); 
   }
@@ -91,7 +100,6 @@ app.post('/api/login', (req, res) => {
 // ==========================================
 // 👥 FRIENDS SYSTEM ENDPOINTS (REAL SQL)
 // ==========================================
-
 app.get('/api/users/search', (req, res) => {
   const { q, currentUserId } = req.query;
   db.query(
@@ -181,13 +189,11 @@ io.on('connection', (socket) => {
 
   // --- WATCH PARTY REAL-TIME STREAMING EVENTS ---
   
-  // 1. Είσοδος στο Watch Party της ταινίας
   socket.on('join-watch-party', ({ movieId, userId, username, avatar }) => {
     socket.join(`movie_room_${movieId}`);
     socket.movieId = movieId;
     socket.userId = userId;
 
-    // Ενημέρωση των υπολοίπων στο δωμάτιο για τον νέο χρήστη
     socket.to(`movie_room_${movieId}`).emit('party-user-joined', {
       userId,
       username,
@@ -196,7 +202,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 2. Real-time έλεγχος κατάστασης κάμερας (On/Off Broadcast)
   socket.on('toggle-camera', ({ movieId, userId, enabled }) => {
     socket.to(`movie_room_${movieId}`).emit('party-user-camera-changed', {
       userId,
@@ -204,7 +209,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 3. Real-time έλεγχος κατάστασης μικροφώνου (Mute/Unmute Broadcast)
   socket.on('toggle-audio', ({ movieId, userId, enabled }) => {
     socket.to(`movie_room_${movieId}`).emit('party-user-audio-changed', {
       userId,
@@ -212,7 +216,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 4. Εκούσια αποχώρηση από το Watch Party
   socket.on('leave-watch-party', ({ movieId, userId }) => {
     socket.leave(`movie_room_${movieId}`);
     socket.to(`movie_room_${movieId}`).emit('party-user-left', { userId });
@@ -261,7 +264,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Αυτόματη αφαίρεση από το δωμάτιο αν κλείσει ο browser απότομα
   socket.on('disconnect', () => {
     if (socket.movieId && socket.userId) {
       io.to(`movie_room_${socket.movieId}`).emit('party-user-left', { userId: socket.userId });
@@ -269,6 +271,7 @@ io.on('connection', (socket) => {
   });
 });
 
+// 🌐 ΔΥΝΑΜΙΚΗ ΠΟΡΤΑ ΓΙΑ ΤΑ LIVE CLOUDS (RENDER, RAILWAY ΚΛΠ)
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`\n==============================================`);
