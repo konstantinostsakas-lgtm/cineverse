@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Film, LogIn, UserPlus, Lock, User } from 'lucide-react';
 
-// 🌐 ΤΟΠΙΚΟ ΛΕΞΙΚΟ ΜΕΤΑΦΡΑΣΕΩΝ (ΑΠΟΚΛΕΙΣΤΙΚΑ ΕΛΛΗΝΙΚΑ & ΑΓΓΛΙΚΑ)
+// 🌐 ΤΟΠΙΚΟ ΛΕΞΙΚΟ ΜΕΤΑΦΡΑΣΕΩΝ
 const COMPONENT_STRINGS = {
   el: {
     titleRegister: "Δημιουργία Λογαριασμού",
@@ -57,15 +57,12 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 🌍 Επιλογή της σωστής γλώσσας
   const localLang = currentLang === 'en' ? 'en' : 'el';
   const strings = COMPONENT_STRINGS[localLang];
 
-  // Ανάκτηση των πραγματικών διαθέσιμων avatars από το backend κατά το mount
   useEffect(() => {
     const fetchAvatars = async () => {
       try {
-        // ✨ ΔΙΟΡΘΩΣΗ: Καθαρό HTTPS URL χωρίς θύρα :5000
         const response = await fetch('https://cineverse-backend-vmof.onrender.com/api/avatars');
         if (response.ok) {
           const data = await response.json();
@@ -96,8 +93,6 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
 
     try {
       if (isRegisterMode) {
-        // --- ΠΡΑΓΜΑΤΙΚΟ REGISTER ΣΤΟ BACKEND ---
-        // ✨ ΔΙΟΡΘΩΣΗ: Καθαρό HTTPS URL χωρίς θύρα :5000
         const response = await fetch('https://cineverse-backend-vmof.onrender.com/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -111,11 +106,9 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
         }
 
         setSuccessMessage(strings.registerSuccess);
-        setIsRegisterMode(false); // Γυρνάει αυτόματα στο Login
+        setIsRegisterMode(false); 
         setPassword('');
       } else {
-        // --- ΠΡΑΓΜΑΤΙΚΟ LOGIN ΣΤΟ BACKEND ---
-        // ✨ ΔΙΟΡΘΩΣΗ: Καθαρό HTTPS URL χωρίς θύρα :5000
         const response = await fetch('https://cineverse-backend-vmof.onrender.com/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -128,16 +121,22 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
           throw new Error(data.error || strings.genericLoginError);
         }
 
-        // Αποθήκευση των πραγματικών στοιχείων από τη MySQL
+        // Αποθήκευση στο localStorage
         localStorage.setItem('cineverse_token', data.token);
         localStorage.setItem('cineverse_user', JSON.stringify(data.user));
         
-        onLoginSuccess(data.user);
+        // ✨ ΔΙΟΡΘΩΣΗ: Ασφαλής κλήση του onLoginSuccess
+        if (typeof onLoginSuccess === 'function') {
+          onLoginSuccess(data.user);
+        } else {
+          // Αν το prop έχει χαθεί, κάνουμε force reload για να διαβάσει το App.js το localStorage
+          window.location.reload();
+        }
       }
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
-      isLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -194,7 +193,6 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
             </div>
           </div>
 
-          {/* Real-time εμφάνιση των Avatars από τη βάση δεδομένων */}
           {isRegisterMode && avatars.length > 0 && (
             <div style={{ textAlign: 'left' }}>
               <label style={{ display: 'block', fontSize: '0.8rem', color: '#aaa', marginBottom: '0.4rem', fontWeight: 600 }}>{strings.labelAvatar}</label>

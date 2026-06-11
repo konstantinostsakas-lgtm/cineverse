@@ -25,10 +25,10 @@ const io = new Server(server, {
   }
 });
 
-// 🔐 SECRET KEY (Χρησιμοποιεί variable online ή το default τοπικά)
+// 🔐 SECRET KEY
 const JWT_SECRET = process.env.JWT_SECRET || "CINEVERSE_LOCAL_SECRET_KEY";
 
-// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ MySQL (Υποστηρίζει Localhost ΚΑΙ Live Database μέσω Environment Variables)
+// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ MySQL
 const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -55,6 +55,29 @@ const emitLeaderboard = () => {
     if (!err) io.emit('leaderboard-update', results);
   });
 };
+
+// ==========================================
+// 🌟 ΝΕΑ ENDPOINTS (ΔΙΟΡΘΩΣΗ ΓΙΑ ΤΑ 404 ERRORS)
+// ==========================================
+
+// 1. Επιστρέφει τα διαθέσιμα Avatars στη React
+app.get('/api/avatars', (req, res) => {
+  const avatars = ['🍿', '🎬', '🎭', '👽', '🦸‍♂️', '🧟‍♀️', '🥷', '🧙‍♂️'];
+  res.json({ avatars });
+});
+
+// 2. Επιστρέφει μια ασφαλή λίστα (ή κενή αν δεν υπάρχουν) για το FriendsPanel.js
+app.get('/api/friends/list/:userId', (req, res) => {
+  const userId = req.params.userId;
+  // Φέρνουμε μερικούς τυχαίους χρήστες για να γεμίσει το UI, εξαιρώντας τον τρέχοντα χρήστη
+  db.query('SELECT id, username AS name, avatar FROM users WHERE id != ? LIMIT 10', [userId], (err, results) => {
+    if (err) {
+      console.error("Σφάλμα στην ανάκτηση φίλων:", err);
+      return res.status(500).json([]); // Επιστρέφουμε πάντα Array για να μην κρασάρει η React!
+    }
+    res.json(results || []);
+  });
+});
 
 // ==========================================
 // 🔐 AUTH ENDPOINTS
