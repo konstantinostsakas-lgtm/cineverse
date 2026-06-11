@@ -36,7 +36,7 @@ db.getConnection((err, connection) => {
 });
 
 const emitLeaderboard = () => {
-  db.query('SELECT id, username AS name, avatar, xp, rank_title AS `rank` FROM users ORDER BY xp DESC LIMIT 10', (err, results) => {
+  db.query('SELECT id, username AS name, avatar, xp, rank_title AS user_rank FROM users ORDER BY xp DESC LIMIT 10', (err, results) => {
     if (!err) io.emit('leaderboard-update', results);
   });
 };
@@ -48,7 +48,7 @@ const emitLeaderboard = () => {
 app.get('/api/friends/list/:userId', (req, res) => {
   const userId = req.params.userId;
   db.query(`
-    SELECT u.id, u.username, u.avatar, u.rank_title AS \`rank\`
+    SELECT u.id, u.username, u.avatar, u.rank_title AS user_rank
     FROM friendships f
     JOIN users u ON (
       CASE WHEN f.sender_id = ? THEN f.receiver_id ELSE f.sender_id END = u.id
@@ -188,11 +188,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('get-initial-data', (userId) => {
-    db.query('SELECT id, username AS name, avatar, xp, rank_title AS `rank` FROM users ORDER BY xp DESC LIMIT 10', (err, leaderboard) => {
+    db.query('SELECT id, username AS name, avatar, xp, rank_title AS user_rank FROM users ORDER BY xp DESC LIMIT 10', (err, leaderboard) => {
       if (err) return socket.emit('initial-data-res', { leaderboard: [] });
 
       if (userId && userId !== 'guest') {
-        db.query('SELECT id, username AS name, avatar, xp, rank_title AS `rank` FROM users WHERE id = ?', [userId], (err, results) => {
+        db.query('SELECT id, username AS name, avatar, xp, rank_title AS user_rank FROM users WHERE id = ?', [userId], (err, results) => {
           const profile = results && results[0] ? results[0] : null;
           socket.emit('initial-data-res', { profile, leaderboard });
         });
@@ -205,7 +205,7 @@ io.on('connection', (socket) => {
   socket.on('add-xp', ({ userId, amount }) => {
     db.query('UPDATE users SET xp = xp + ? WHERE id = ?', [amount, userId], (err) => {
       if (err) return;
-      db.query('SELECT id, username AS name, avatar, xp, rank_title AS `rank` FROM users WHERE id = ?', [userId], (err, results) => {
+      db.query('SELECT id, username AS name, avatar, xp, rank_title AS user_rank FROM users WHERE id = ?', [userId], (err, results) => {
         if (results && results[0]) socket.emit('profile-update', results[0]);
         emitLeaderboard();
       });
