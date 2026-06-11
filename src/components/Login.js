@@ -65,7 +65,8 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
   useEffect(() => {
     const fetchAvatars = async () => {
       try {
-        const response = await fetch('http://https://cineverse-backend-vmof.onrender.com:5000/api/avatars');
+        // ✨ ΔΙΟΡΘΩΣΗ: Καθαρό HTTPS URL χωρίς θύρα :5000
+        const response = await fetch('https://cineverse-backend-vmof.onrender.com/api/avatars');
         if (response.ok) {
           const data = await response.json();
           setAvatars(data.avatars || []);
@@ -96,7 +97,8 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
     try {
       if (isRegisterMode) {
         // --- ΠΡΑΓΜΑΤΙΚΟ REGISTER ΣΤΟ BACKEND ---
-        const response = await fetch('http://https://cineverse-backend-vmof.onrender.com:5000/api/register', {
+        // ✨ ΔΙΟΡΘΩΣΗ: Καθαρό HTTPS URL χωρίς θύρα :5000
+        const response = await fetch('https://cineverse-backend-vmof.onrender.com/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password, avatar: selectedAvatar })
@@ -113,7 +115,8 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
         setPassword('');
       } else {
         // --- ΠΡΑΓΜΑΤΙΚΟ LOGIN ΣΤΟ BACKEND ---
-        const response = await fetch('http://https://cineverse-backend-vmof.onrender.com:5000/api/login', {
+        // ✨ ΔΙΟΡΘΩΣΗ: Καθαρό HTTPS URL χωρίς θύρα :5000
+        const response = await fetch('https://cineverse-backend-vmof.onrender.com/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
@@ -134,7 +137,7 @@ function Login({ onLoginSuccess, currentLang = 'el' }) {
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
-      setIsLoading(false);
+      isLoading(false);
     }
   };
 
