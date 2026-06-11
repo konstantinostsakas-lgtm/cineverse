@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Send, Calendar, Clock, Star, Play, X, Check } from 'lucide-react';
 import { io } from 'socket.io-client';
 
-const socket = io('http://https://cineverse-backend-vmof.onrender.com:5000', { autoConnect: false });
+const socket = io('https://cineverse-backend-vmof.onrender.com', { autoConnect: false });
 
 const COMPONENT_STRINGS = {
   el: {
@@ -83,7 +83,7 @@ function MovieDetails({ movieId, onBackToHome, onStartWatchParty, currentUserId,
           });
         }
         if (currentUserId && currentUserId !== 'guest') {
-          const friendsRes = await fetch(`http://https://cineverse-backend-vmof.onrender.com:5000/api/friends/list/${currentUserId}`);
+          const friendsRes = await fetch(`https://cineverse-backend-vmof.onrender.com/api/friends/list/${currentUserId}`);
           const friendsData = await friendsRes.json();
           setFriends(friendsData);
         }
@@ -111,7 +111,6 @@ function MovieDetails({ movieId, onBackToHome, onStartWatchParty, currentUserId,
   const handleStartSoloWatch = () => { setIsWatchParty(true); setIsPartyMode(false); };
   const handleStartWatchPartyClick = () => { setShowFriendSelector(true); };
 
-  // Διαχείριση επιλογής/αποεπιλογής φίλου
   const handleToggleFriend = (friendId) => {
     setSelectedFriends(prev =>
       prev.includes(friendId)
@@ -123,7 +122,6 @@ function MovieDetails({ movieId, onBackToHome, onStartWatchParty, currentUserId,
   const confirmAndStartParty = () => {
     setShowFriendSelector(false);
     if (onStartWatchParty) {
-      // Περνάμε και τους επιλεγμένους φίλους στο Watch Party component
       onStartWatchParty(movieId, selectedFriends);
     } else {
       setIsWatchParty(true);
@@ -156,7 +154,6 @@ function MovieDetails({ movieId, onBackToHome, onStartWatchParty, currentUserId,
               <X onClick={() => setShowFriendSelector(false)} style={{ cursor: 'pointer', color: '#666' }} />
             </div>
             
-            {/* ΛΙΣΤΑ ΦΙΛΩΝ (SCROLLABLE) */}
             <div style={{ maxHeight: '260px', overflowY: 'auto', marginBottom: '1.5rem', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '5px' }}>
               {friends && friends.length > 0 ? (
                 friends.map(friend => {
