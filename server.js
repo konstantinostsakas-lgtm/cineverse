@@ -8,27 +8,17 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 
-// 🔓 ΡΥΘΜΙΣΗ CORS (Επιτρέπει αιτήματα από παντού στο production)
-app.use(cors({
-  origin: "*", 
-  methods: ["GET", "POST"]
-}));
+app.use(cors({ origin: "*", methods: ["GET", "POST"] }));
 app.use(express.json());
 
 const server = http.createServer(app);
 
-// 📡 ΡΥΘΜΙΣΗ SOCKET.IO
 const io = new Server(server, {
-  cors: {
-    origin: "*", 
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-// 🔐 SECRET KEY
 const JWT_SECRET = process.env.JWT_SECRET || "CINEVERSE_LOCAL_SECRET_KEY";
 
-// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ MySQL
 const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -41,15 +31,10 @@ const db = mysql.createPool({
 });
 
 db.getConnection((err, connection) => {
-  if (err) {
-    console.error("❌ Σφάλμα σύνδεσης στη MySQL:", err.message);
-  } else { 
-    console.log("🚀 Η σύνδεση με τη MySQL έγινε επιτυχώς!"); 
-    connection.release(); 
-  }
+  if (err) console.error("❌ Σφάλμα σύνδεσης στη MySQL:", err.message);
+  else { console.log("🚀 Σύνδεση με MySQL επιτυχής!"); connection.release(); }
 });
 
-// Live συγχρονισμός leaderboard
 const emitLeaderboard = () => {
   db.query('SELECT id, username AS name, avatar, xp, rank_title AS rank FROM users ORDER BY xp DESC LIMIT 10', (err, results) => {
     if (!err) io.emit('leaderboard-update', results);
@@ -57,26 +42,106 @@ const emitLeaderboard = () => {
 };
 
 // ==========================================
-// 🌟 ΝΕΑ ENDPOINTS (ΔΙΟΡΘΩΣΗ ΓΙΑ ΤΑ 404 ERRORS)
+// 👥 FRIENDS ENDPOINTS (ΠΡΟΣΘΗΚΗ ΟΛΩΝ)
 // ==========================================
 
-// 1. Επιστρέφει τα διαθέσιμα Avatars στη React
-app.get('/api/avatars', (req, res) => {
-  const avatars = ['🍿', '🎬', '🎭', '👽', '🦸‍♂️', '🧟‍♀️', '🥷', '🧙‍♂️'];
-  res.json({ avatars });
-});
-
-// 2. Επιστρέφει μια ασφαλή λίστα (ή κενή αν δεν υπάρχουν) για το FriendsPanel.js
+// ✅ Λίστα φίλων (accepted)
 app.get('/api/friends/list/:userId', (req, res) => {
   const userId = req.params.userId;
-  // Φέρνουμε μερικούς τυχαίους χρήστες για να γεμίσει το UI, εξαιρώντας τον τρέχοντα χρήστη
-  db.query('SELECT id, username AS name, avatar FROM users WHERE id != ? LIMIT 10', [userId], (err, results) => {
-    if (err) {
-      console.error("Σφάλμα στην ανάκτηση φίλων:", err);
-      return res.status(500).json([]); // Επιστρέφουμε πάντα Array για να μην κρασάρει η React!
-    }
+  db.query(`
+    SELECT u.id, u.username, u.avatar, u.rank_title AS rank
+    FROM friendships f
+    JOIN users u ON (
+      CASE WHEN f.sender_id = ? THEN f.receiver_id ELSE f.sender_id END = u.id
+    )
+    WHERE (f.sender_id = ? OR f.receiver_id = ?)
+      AND f.status = 'accepted'
+  `, [userId, userId, userId], (err, results) => {
+    if (err) { console.error(err); return res.status(500).json([]); }
     res.json(results || []);
   });
+});
+
+// ✅ Εκκρεμή αιτήματα φιλίας (pending) προς τον τρέχοντα χρήστη
+app.get('/api/friends/pending/:userId', (req, res) => {
+  const userId = req.params.userId;
+  db.query(`
+    SELECT f.id AS friendshipId, u.id, u.username, u.avatar
+    FROM friendships f
+    JOIN users u ON f.sender_id = u.id
+    WHERE f.receiver_id = ? AND f.status = 'pending'
+  `, [userId], (err, results) => {
+    if (err) { console.error(err); return res.status(500).json([]); }
+    res.json(results || []);
+  });
+});
+
+// ✅ Αποστολή αιτήματος φιλίας
+app.post('/api/friends/request', (req, res) => {
+  const { senderId, receiverId } = req.body;
+  if (!senderId || !receiverId) return res.status(400).json({ error: "Missing senderId or receiverId" });
+  if (senderId === receiverId) return res.status(400).json({ error: "Cannot add yourself" });
+
+  // Έλεγχος αν υπάρχει ήδη
+  db.query(
+    `SELECT id FROM friendships WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)`,
+    [senderId, receiverId, receiverId, senderId],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: "DB error" });
+      if (results.length > 0) return res.status(400).json({ error: "Friendship already exists" });
+
+      db.query(
+        `INSERT INTO friendships (sender_id, receiver_id, status) VALUES (?, ?, 'pending')`,
+        [senderId, receiverId],
+        (err) => {
+          if (err) return res.status(500).json({ error: "Failed to send request" });
+
+          // Real-time notification
+          io.to(`user-${receiverId}`).emit('new-friend-request');
+          res.json({ message: "Friend request sent!" });
+        }
+      );
+    }
+  );
+});
+
+// ✅ Αποδοχή / Απόρριψη αιτήματος φιλίας
+app.post('/api/friends/respond', (req, res) => {
+  const { friendshipId, action } = req.body;
+  if (!friendshipId || !action) return res.status(400).json({ error: "Missing fields" });
+
+  const status = action === 'accept' ? 'accepted' : 'rejected';
+  db.query(
+    `UPDATE friendships SET status = ? WHERE id = ?`,
+    [status, friendshipId],
+    (err) => {
+      if (err) return res.status(500).json({ error: "Failed to respond" });
+      res.json({ message: `Friendship ${status}` });
+    }
+  );
+});
+
+// ✅ Αναζήτηση χρηστών
+app.get('/api/users/search', (req, res) => {
+  const { q, currentUserId } = req.query;
+  if (!q || q.trim().length < 2) return res.json([]);
+
+  db.query(
+    `SELECT id, username, avatar FROM users 
+     WHERE username LIKE ? AND id != ? LIMIT 10`,
+    [`%${q}%`, currentUserId || 0],
+    (err, results) => {
+      if (err) return res.status(500).json([]);
+      res.json(results || []);
+    }
+  );
+});
+
+// ==========================================
+// 🎭 AVATARS
+// ==========================================
+app.get('/api/avatars', (req, res) => {
+  res.json({ avatars: ['🍿', '🎬', '🎭', '👽', '🦸‍♂️', '🧟‍♀️', '🥷', '🧙‍♂️'] });
 });
 
 // ==========================================
@@ -92,13 +157,16 @@ app.post('/api/register', async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    const userAvatar = avatar || '🍿';
 
-    db.query('INSERT INTO users (username, password, avatar, xp, rank_title) VALUES (?, ?, ?, 0, "Νεοσύλλεκτος Σινεφίλ")', [username, hashedPassword, userAvatar], (err) => {
-      if (err) return res.status(500).json({ error: "Αποτυχία εγγραφής στη βάση" });
-      emitLeaderboard();
-      return res.status(201).json({ message: "Η εγγραφή ολοκληρώθηκε επιτυχώς!" });
-    });
+    db.query(
+      'INSERT INTO users (username, password, avatar, xp, rank_title) VALUES (?, ?, ?, 0, "Νεοσύλλεκτος Σινεφίλ")',
+      [username, hashedPassword, avatar || '🍿'],
+      (err) => {
+        if (err) return res.status(500).json({ error: "Αποτυχία εγγραφής στη βάση" });
+        emitLeaderboard();
+        return res.status(201).json({ message: "Η εγγραφή ολοκληρώθηκε επιτυχώς!" });
+      }
+    );
   });
 });
 
@@ -113,14 +181,29 @@ app.post('/api/login', (req, res) => {
     if (!isMatch) return res.status(400).json({ error: "Λάθος στοιχεία σύνδεσης!" });
 
     const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-    return res.json({ 
-      token, 
-      user: { id: user.id, name: user.username, avatar: user.avatar, xp: user.xp, rank: user.rank_title } 
+    return res.json({
+      token,
+      user: { id: user.id, name: user.username, avatar: user.avatar, xp: user.xp, rank: user.rank_title }
     });
   });
 });
 
-// 🌐 SERVER LISTENING (Δυναμικό PORT για το Render)
+// ==========================================
+// 📡 SOCKET.IO
+// ==========================================
+io.on('connection', (socket) => {
+  socket.on('join-user-room', (userId) => {
+    socket.join(`user-${userId}`);
+  });
+
+  socket.on('send-watch-party-invite', ({ senderId, receiverId }) => {
+    io.to(`user-${receiverId}`).emit('watch-party-invite', { senderId });
+  });
+});
+
+// ==========================================
+// 🚀 SERVER START
+// ==========================================
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`\n==============================================`);
