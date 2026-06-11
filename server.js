@@ -15,7 +15,7 @@ app.use(express.json());
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST "] }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || "CINEVERSE_LOCAL_SECRET_KEY";
@@ -140,49 +140,31 @@ app.get('/api/avatars', (req, res) => {
 // ==========================================
 // 🔐 AUTH ENDPOINTS
 // ==========================================
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
   const { username, password, avatar } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Συμπληρώστε όλα τα πεδία!" });
 
-  if (!username || !password) {
-    return res.status(400).json({ error: "Συμπληρώστε όλα τα πεδία!" });
-  }
+  db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
+    if (err) return res.status(500).json({ error: "Σφάλμα βάσης δεδομένων" });
+    if (results.length > 0) return res.status(400).json({ error: "Το username χρησιμοποιείται ήδη!" });
 
-  db.query(
-    'SELECT * FROM users WHERE username = ?',
-    [username],
-    async (err, results) => {
-      if (err) {
-        console.error("DB ERROR:", err);
-        return res.status(500).json({ error: "Σφάλμα βάσης δεδομένων" });
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    db.query(
+      'INSERT INTO users (username, password, avatar, xp, rank_title) VALUES (?, ?, ?, 0, "Νεοσύλλεκτος Σινεφίλ")',
+      [username, hashedPassword, avatar || '🍿'],
+      (err) => {
+        if (err) {
+          console.error("REGISTER MYSQL ERROR:", err);
+          return res.status(500).json({ error: err.message });
+        }
+
+        emitLeaderboard();
+        return res.status(201).json({ message: "Η εγγραφή ολοκληρώθηκε επιτυχώς!" });
       }
-
-      if (results.length > 0) {
-        return res.status(400).json({ error: "Το username χρησιμοποιείται ήδη!" });
-      }
-
-      try {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        db.query(
-          'INSERT INTO users (username, password, avatar, xp, rank_title) VALUES (?, ?, ?, 0, "Νεοσύλλεκτος Σινεφίλ")',
-          [username, hashedPassword, avatar || '🍿'],
-          (err) => {
-            if (err) {
-              console.error("INSERT ERROR:", err);
-              return res.status(500).json({ error: "DB insert failed" });
-            }
-
-            emitLeaderboard();
-            return res.status(201).json({ message: "OK" });
-          }
-        );
-      } catch (e) {
-        console.error("BCRYPT ERROR:", e);
-        return res.status(500).json({ error: "Encryption failed" });
-      }
-    }
-  );
+    );
+  });
 });
 
 app.post('/api/login', (req, res) => {
