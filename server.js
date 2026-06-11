@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 
+// 🔓 ΡΥΘΜΙΣΗ CORS
 app.use(cors({ origin: "*", methods: ["GET", "POST"] }));
 app.use(express.json());
 
@@ -19,6 +20,7 @@ const io = new Server(server, {
 
 const JWT_SECRET = process.env.JWT_SECRET || "CINEVERSE_LOCAL_SECRET_KEY";
 
+// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ MySQL
 const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -153,7 +155,11 @@ app.post('/api/register', async (req, res) => {
       'INSERT INTO users (username, password, avatar, xp, rank_title) VALUES (?, ?, ?, 0, "Νεοσύλλεκτος Σινεφίλ")',
       [username, hashedPassword, avatar || '🍿'],
       (err) => {
-        if (err) return res.status(500).json({ error: "Αποτυχία εγγραφής στη βάση" });
+        if (err) {
+          console.error("REGISTER MYSQL ERROR:", err);
+          return res.status(500).json({ error: err.message });
+        }
+
         emitLeaderboard();
         return res.status(201).json({ message: "Η εγγραφή ολοκληρώθηκε επιτυχώς!" });
       }
