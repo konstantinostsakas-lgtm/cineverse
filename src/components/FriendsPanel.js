@@ -49,12 +49,12 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
     if (!currentUserId || currentUserId === 'guest') return;
     try {
       // Φόρτωση Λίστας Φίλων
-     const friendsRes = await fetch(`http://localhost:5000/api/friends/list/${currentUserId}`);
+     const friendsRes = await fetch(`https://cineverse-backend-vmof.onrender.com/api/friends/list/${currentUserId}`);
       const friendsData = await friendsRes.json();
       setFriends(friendsData);
 
       // Φόρτωση Εκκρεμών Αιτημάτων
-      const pendingRes = await fetch(`http://localhost:5000/api/friends/pending/${currentUserId}`);
+      const pendingRes = await fetch(`https://cineverse-backend-vmof.onrender.com/api/friends/pending/${currentUserId}`);
       const pendingData = await pendingRes.json();
       setPendingRequests(pendingData);
     } catch (err) {
@@ -86,7 +86,7 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
         return;
       }
       try {
-       const res = await fetch(`http://localhost:5000/api/users/search?q=${searchQuery}&currentUserId=${currentUserId}`);
+       const res = await fetch(`https://cineverse-backend-vmof.onrender.com/api/users/search?q=${searchQuery}&currentUserId=${currentUserId}`);
         const data = await res.json();
         setSearchResults(data);
       } catch (err) {
@@ -100,7 +100,7 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
   // Αποστολή αιτήματος φιλίας στο API
   const sendFriendRequest = async (receiverId) => {
     try {
-      const res = await fetch('http://http://localhost:5000:5000/api/friends/request', {
+      const res = await fetch('http://https://cineverse-backend-vmof.onrender.com:5000/api/friends/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ senderId: currentUserId, receiverId })
@@ -123,7 +123,7 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
   // Απάντηση σε αίτημα (Accept / Reject) στο API
   const handleRespond = async (friendshipId, action) => {
     try {
-      await fetch('http://http://localhost:5000:5000/api/friends/respond', {
+      await fetch('http://https://cineverse-backend-vmof.onrender.com:5000/api/friends/respond', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ friendshipId, action })
