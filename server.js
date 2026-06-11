@@ -151,10 +151,9 @@ app.post('/api/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // ✅ ΔΙΟΡΘΩΜΕΝΟ QUERY
     db.query(
-      'INSERT INTO users (username, password, avatar, xp, rank_title) VALUES (?, ?, ?, 0, ?)',
-      [username, hashedPassword, avatar || '🍿', 'Νεοσύλλεκτος Σινεφίλ'],
+      'INSERT INTO users (username, password, avatar, xp, rank_title) VALUES (?, ?, ?, 0, "Νεοσύλλεκτος Σινεφίλ")',
+      [username, hashedPassword, avatar || '🍿'],
       (err) => {
         if (err) {
           console.error("REGISTER MYSQL ERROR:", err);
