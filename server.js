@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 
-// 🔓 ΡΥΘΜΙΣΗ CORS (Επιτρέπει αιτήματα από το τοπικό React)
+// 🔓 ΡΥΘΜΙΣΗ CORS (Επιτρέπει αιτήματα από παντού στο production)
 app.use(cors({
   origin: "*", 
   methods: ["GET", "POST"]
@@ -25,16 +25,16 @@ const io = new Server(server, {
   }
 });
 
-// 🔐 SECRET KEY (Για το Localhost)
-const JWT_SECRET = "CINEVERSE_LOCAL_SECRET_KEY";
+// 🔐 SECRET KEY (Χρησιμοποιεί variable online ή το default τοπικά)
+const JWT_SECRET = process.env.JWT_SECRET || "CINEVERSE_LOCAL_SECRET_KEY";
 
-// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ MySQL (ΡΥΘΜΙΣΗ ΓΙΑ XAMPP)
+// 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ MySQL (Υποστηρίζει Localhost ΚΑΙ Live Database μέσω Environment Variables)
 const db = mysql.createPool({
-  host: 'localhost',         // Σταθερό για XAMPP
-  user: 'root',              // Σταθερό για XAMPP
-  password: '',              // Κενό για XAMPP
-  database: 'cineverse_db',  // Το όνομα της βάσης σου στο phpMyAdmin
-  port: 3306,
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_DATABASE || 'cineverse_db',
+  port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -97,13 +97,10 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// (Υπόλοιπα Endpoints: friends/search, friends/request κλπ παραμένουν ίδια)
-// ... [Σημείωση: Μπορείς να αφήσεις τα υπόλοιπα endpoints που είχες, δεν αλλάζουν]
-
-// 🌐 SERVER LISTENING
-const PORT = 5000;
+// 🌐 SERVER LISTENING (Δυναμικό PORT για το Render)
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`\n==============================================`);
-  console.log(`🎬 CINEVERSE LOCAL BACKEND RUNNING ON PORT ${PORT}`);
+  console.log(`🎬 CINEVERSE BACKEND RUNNING ON PORT ${PORT}`);
   console.log(`==============================================`);
 });
