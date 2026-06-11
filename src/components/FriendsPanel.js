@@ -32,7 +32,6 @@ const COMPONENT_STRINGS = {
   }
 };
 
-// ✅ Single source of truth for the base URL
 const API_BASE = 'https://cineverse-backend-vmof.onrender.com';
 
 function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
@@ -48,8 +47,8 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
   const fetchFriendsData = async () => {
     if (!currentUserId || currentUserId === 'guest') return;
     try {
+      // ✅ Σωστά API routes με το /api/ prefix
       const friendsRes = await fetch(`${API_BASE}/api/friends/list/${currentUserId}`);
-      // ✅ Guard: check Content-Type before parsing JSON
       if (!friendsRes.ok) throw new Error(`Friends list error: ${friendsRes.status}`);
       const friendsData = await friendsRes.json();
       setFriends(friendsData);
@@ -97,7 +96,6 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
 
   const sendFriendRequest = async (receiverId) => {
     try {
-      // ✅ Fixed URL — was 'http://https://....:5000/...' (double protocol + wrong port)
       const res = await fetch(`${API_BASE}/api/friends/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,7 +117,6 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
 
   const handleRespond = async (friendshipId, action) => {
     try {
-      // ✅ Fixed URL — same issue as above
       const res = await fetch(`${API_BASE}/api/friends/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
