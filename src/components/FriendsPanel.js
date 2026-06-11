@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Check, X, Users, Search } from 'lucide-react';
 
-// 🌐 ΤΟΠΙΚΟ ΛΕΞΙΚΟ ΜΕΤΑΦΡΑΣΕΩΝ (ΑΠΟΚΛΕΙΣΤΙΚΑ ΕΛΛΗΝΙΚΑ & ΑΓΓΛΙΚΑ)
 const COMPONENT_STRINGS = {
   el: {
     panelTitle: "Κοινότητα & Φίλοι",
@@ -33,6 +32,9 @@ const COMPONENT_STRINGS = {
   }
 };
 
+// ✅ Single source of truth for the base URL
+const API_BASE = 'https://cineverse-backend-vmof.onrender.com';
+
 function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -40,21 +42,20 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [message, setMessage] = useState('');
 
-  // 🌍 Επιλογή της σωστής γλώσσας
   const localLang = currentLang === 'en' ? 'en' : 'el';
   const strings = COMPONENT_STRINGS[localLang];
 
-  // Φόρτωση πραγματικών δεδομένων από το API
   const fetchFriendsData = async () => {
     if (!currentUserId || currentUserId === 'guest') return;
     try {
-      // Φόρτωση Λίστας Φίλων
-     const friendsRes = await fetch(`https://cineverse-backend-vmof.onrender.com/api/friends/list/${currentUserId}`);
+      const friendsRes = await fetch(`${API_BASE}/api/friends/list/${currentUserId}`);
+      // ✅ Guard: check Content-Type before parsing JSON
+      if (!friendsRes.ok) throw new Error(`Friends list error: ${friendsRes.status}`);
       const friendsData = await friendsRes.json();
       setFriends(friendsData);
 
-      // Φόρτωση Εκκρεμών Αιτημάτων
-      const pendingRes = await fetch(`https://cineverse-backend-vmof.onrender.com/api/friends/pending/${currentUserId}`);
+      const pendingRes = await fetch(`${API_BASE}/api/friends/pending/${currentUserId}`);
+      if (!pendingRes.ok) throw new Error(`Pending requests error: ${pendingRes.status}`);
       const pendingData = await pendingRes.json();
       setPendingRequests(pendingData);
     } catch (err) {
@@ -65,20 +66,16 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
   useEffect(() => {
     fetchFriendsData();
 
-    // Ακρόαση WebSocket για real-time Friend Requests
     if (socket) {
       socket.emit('join-user-room', currentUserId);
-      socket.on('new-friend-request', () => {
-        fetchFriendsData();
-      });
+      socket.on('new-friend-request', fetchFriendsData);
     }
 
     return () => {
-      if (socket) socket.off('new-friend-request');
+      if (socket) socket.off('new-friend-request', fetchFriendsData);
     };
   }, [currentUserId, socket]);
 
-  // Αναζήτηση χρηστών live με Debounce
   useEffect(() => {
     const searchUsers = async () => {
       if (searchQuery.trim().length < 2) {
@@ -86,55 +83,55 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
         return;
       }
       try {
-       const res = await fetch(`https://cineverse-backend-vmof.onrender.com/api/users/search?q=${searchQuery}&currentUserId=${currentUserId}`);
+        const res = await fetch(`${API_BASE}/api/users/search?q=${searchQuery}&currentUserId=${currentUserId}`);
+        if (!res.ok) throw new Error(`Search error: ${res.status}`);
         const data = await res.json();
         setSearchResults(data);
       } catch (err) {
         console.error(err);
       }
     };
-    const delayDebounce = setTimeout(() => searchUsers(), 300);
+    const delayDebounce = setTimeout(searchUsers, 300);
     return () => clearTimeout(delayDebounce);
   }, [searchQuery, currentUserId]);
 
-  // Αποστολή αιτήματος φιλίας στο API
   const sendFriendRequest = async (receiverId) => {
     try {
-      const res = await fetch('http://https://cineverse-backend-vmof.onrender.com:5000/api/friends/request', {
+      // ✅ Fixed URL — was 'http://https://....:5000/...' (double protocol + wrong port)
+      const res = await fetch(`${API_BASE}/api/friends/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ senderId: currentUserId, receiverId })
       });
-      const data = await res.json();
-      if (res.ok) {
+      if (!res.ok) {
+        const data = await res.json();
+        setMessage(`⚠️ ${data.error}`);
+      } else {
         setMessage(strings.requestSent);
         setSearchQuery('');
         setSearchResults([]);
-        setTimeout(() => setMessage(''), 3000);
-      } else {
-        setMessage(`⚠️ ${data.error}`);
-        setTimeout(() => setMessage(''), 3000);
       }
+      setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Απάντηση σε αίτημα (Accept / Reject) στο API
   const handleRespond = async (friendshipId, action) => {
     try {
-      await fetch('http://https://cineverse-backend-vmof.onrender.com:5000/api/friends/respond', {
+      // ✅ Fixed URL — same issue as above
+      const res = await fetch(`${API_BASE}/api/friends/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ friendshipId, action })
       });
+      if (!res.ok) throw new Error(`Respond error: ${res.status}`);
       fetchFriendsData();
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Πραγματική αποστολή πρόσκλησης Watch Party μέσω WebSockets
   const handleInviteToWatchParty = (friendId, friendUsername) => {
     if (socket && currentUserId) {
       socket.emit('send-watch-party-invite', {
@@ -157,15 +154,13 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
       {/* 🔍 ΑΝΑΖΗΤΗΣΗ ΝΕΩΝ ΦΙΛΩΝ */}
       <div style={{ position: 'relative', marginBottom: '1.5rem' }}>
         <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
-        <input 
-          type="text" 
-          placeholder={strings.searchPlaceholder} 
+        <input
+          type="text"
+          placeholder={strings.searchPlaceholder}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.2rem', backgroundColor: '#1a1a24', border: '1px solid #333', borderRadius: '6px', color: '#fff', fontSize: '0.9rem', outline: 'none' }}
         />
-        
-        {/* Dropdown Αποτελεσμάτων Αναζήτησης */}
         {searchResults.length > 0 && (
           <div style={{ position: 'absolute', top: '100%', left: 0, width: '100%', backgroundColor: '#16161f', border: '1px solid #333', borderRadius: '6px', marginTop: '4px', zIndex: 10, overflow: 'hidden' }}>
             {searchResults.map(u => (
@@ -174,7 +169,7 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
                   <span style={{ fontSize: '1.4rem' }}>{u.avatar}</span>
                   <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{u.username}</span>
                 </div>
-                <button 
+                <button
                   onClick={() => sendFriendRequest(u.id)}
                   style={{ backgroundColor: '#e50914', border: 'none', color: '#fff', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}
                 >
@@ -207,7 +202,7 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
         </div>
       )}
 
-      {/* 🟢 ΛΙΣΤΑ ΦΙΛΩΝ (ONLINE/READY FOR WATCH PARTY) */}
+      {/* 🟢 ΛΙΣΤΑ ΦΙΛΩΝ */}
       <div>
         <h4 style={{ fontSize: '0.9rem', color: '#aaa', marginBottom: '0.8rem', fontWeight: 'bold' }}>{strings.friendsTitle} ({friends.length})</h4>
         {friends.length === 0 ? (
@@ -226,9 +221,7 @@ function FriendsPanel({ currentUserId, socket, currentLang = 'el' }) {
                     <div style={{ fontSize: '0.75rem', color: '#666' }}>{f.rank}</div>
                   </div>
                 </div>
-                
-                {/* Πραγματική κλήση μεμονωμένης πρόσκλησης */}
-                <button 
+                <button
                   onClick={() => handleInviteToWatchParty(f.id, f.username)}
                   style={{ backgroundColor: 'transparent', border: '1px solid #333', color: '#ffd700', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
                 >
