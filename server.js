@@ -36,20 +36,19 @@ db.getConnection((err, connection) => {
 });
 
 const emitLeaderboard = () => {
-  db.query('SELECT id, username AS name, avatar, xp, rank_title AS rank FROM users ORDER BY xp DESC LIMIT 10', (err, results) => {
+  db.query('SELECT id, username AS name, avatar, xp, rank_title AS `rank` FROM users ORDER BY xp DESC LIMIT 10', (err, results) => {
     if (!err) io.emit('leaderboard-update', results);
   });
 };
 
 // ==========================================
-// 👥 FRIENDS ENDPOINTS (ΠΡΟΣΘΗΚΗ ΟΛΩΝ)
+// 👥 FRIENDS ENDPOINTS
 // ==========================================
 
-// ✅ Λίστα φίλων (accepted)
 app.get('/api/friends/list/:userId', (req, res) => {
   const userId = req.params.userId;
   db.query(`
-    SELECT u.id, u.username, u.avatar, u.rank_title AS rank
+    SELECT u.id, u.username, u.avatar, u.rank_title AS \`rank\`
     FROM friendships f
     JOIN users u ON (
       CASE WHEN f.sender_id = ? THEN f.receiver_id ELSE f.sender_id END = u.id
@@ -62,7 +61,6 @@ app.get('/api/friends/list/:userId', (req, res) => {
   });
 });
 
-// ✅ Εκκρεμή αιτήματα φιλίας (pending) προς τον τρέχοντα χρήστη
 app.get('/api/friends/pending/:userId', (req, res) => {
   const userId = req.params.userId;
   db.query(`
@@ -76,13 +74,11 @@ app.get('/api/friends/pending/:userId', (req, res) => {
   });
 });
 
-// ✅ Αποστολή αιτήματος φιλίας
 app.post('/api/friends/request', (req, res) => {
   const { senderId, receiverId } = req.body;
   if (!senderId || !receiverId) return res.status(400).json({ error: "Missing senderId or receiverId" });
   if (senderId === receiverId) return res.status(400).json({ error: "Cannot add yourself" });
 
-  // Έλεγχος αν υπάρχει ήδη
   db.query(
     `SELECT id FROM friendships WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)`,
     [senderId, receiverId, receiverId, senderId],
@@ -95,8 +91,6 @@ app.post('/api/friends/request', (req, res) => {
         [senderId, receiverId],
         (err) => {
           if (err) return res.status(500).json({ error: "Failed to send request" });
-
-          // Real-time notification
           io.to(`user-${receiverId}`).emit('new-friend-request');
           res.json({ message: "Friend request sent!" });
         }
@@ -105,7 +99,6 @@ app.post('/api/friends/request', (req, res) => {
   );
 });
 
-// ✅ Αποδοχή / Απόρριψη αιτήματος φιλίας
 app.post('/api/friends/respond', (req, res) => {
   const { friendshipId, action } = req.body;
   if (!friendshipId || !action) return res.status(400).json({ error: "Missing fields" });
@@ -121,14 +114,12 @@ app.post('/api/friends/respond', (req, res) => {
   );
 });
 
-// ✅ Αναζήτηση χρηστών
 app.get('/api/users/search', (req, res) => {
   const { q, currentUserId } = req.query;
   if (!q || q.trim().length < 2) return res.json([]);
 
   db.query(
-    `SELECT id, username, avatar FROM users 
-     WHERE username LIKE ? AND id != ? LIMIT 10`,
+    `SELECT id, username, avatar FROM users WHERE username LIKE ? AND id != ? LIMIT 10`,
     [`%${q}%`, currentUserId || 0],
     (err, results) => {
       if (err) return res.status(500).json([]);
