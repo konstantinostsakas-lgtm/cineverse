@@ -187,6 +187,31 @@ io.on('connection', (socket) => {
     socket.join(`user-${userId}`);
   });
 
+  socket.on('get-initial-data', (userId) => {
+    db.query('SELECT id, username AS name, avatar, xp, rank_title AS `rank` FROM users ORDER BY xp DESC LIMIT 10', (err, leaderboard) => {
+      if (err) return socket.emit('initial-data-res', { leaderboard: [] });
+
+      if (userId && userId !== 'guest') {
+        db.query('SELECT id, username AS name, avatar, xp, rank_title AS `rank` FROM users WHERE id = ?', [userId], (err, results) => {
+          const profile = results && results[0] ? results[0] : null;
+          socket.emit('initial-data-res', { profile, leaderboard });
+        });
+      } else {
+        socket.emit('initial-data-res', { profile: null, leaderboard });
+      }
+    });
+  });
+
+  socket.on('add-xp', ({ userId, amount }) => {
+    db.query('UPDATE users SET xp = xp + ? WHERE id = ?', [amount, userId], (err) => {
+      if (err) return;
+      db.query('SELECT id, username AS name, avatar, xp, rank_title AS `rank` FROM users WHERE id = ?', [userId], (err, results) => {
+        if (results && results[0]) socket.emit('profile-update', results[0]);
+        emitLeaderboard();
+      });
+    });
+  });
+
   socket.on('send-watch-party-invite', ({ senderId, receiverId }) => {
     io.to(`user-${receiverId}`).emit('watch-party-invite', { senderId });
   });
