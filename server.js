@@ -145,27 +145,16 @@ app.post('/api/register', async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: "Συμπληρώστε όλα τα πεδία!" });
 
   db.query('SELECT * FROM users WHERE username = ?', [username], async (err, results) => {
- app.use(async (ctx, next) => {
-  try {
-    await next();
-  } catch (err) {
-    if (!err.status && !err.statusCode) {
-      console.error("Uncaught Error -- turning into 500", err, err.message);
-      err.status = 500;
-    }
-    throw err;
-  }
-});
-
     if (err) return res.status(500).json({ error: "Σφάλμα βάσης δεδομένων" });
     if (results.length > 0) return res.status(400).json({ error: "Το username χρησιμοποιείται ήδη!" });
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // ✅ ΔΙΟΡΘΩΜΕΝΟ QUERY
     db.query(
-      'INSERT INTO users (username, password, avatar, xp, rank_title) VALUES (?, ?, ?, 0, "Νεοσύλλεκτος Σινεφίλ")',
-      [username, hashedPassword, avatar || '🍿'],
+      'INSERT INTO users (username, password, avatar, xp, rank_title) VALUES (?, ?, ?, 0, ?)',
+      [username, hashedPassword, avatar || '🍿', 'Νεοσύλλεκτος Σινεφίλ'],
       (err) => {
         if (err) {
           console.error("REGISTER MYSQL ERROR:", err);
