@@ -1,11 +1,24 @@
-import React from 'react';
-import { Search, Accessibility, Trophy, Home } from 'lucide-react'; // Αντικατάσταση ShieldAlert με Accessibility
+import React, { useEffect } from 'react'; 
+import { Search, Accessibility, Trophy, Home } from 'lucide-react';
 
 function Navbar({ onNavigate, searchQuery = '', setSearchQuery, onOpenAccessibility }) {
+  
+ 
+  useEffect(() => {
+    if (!searchQuery) return;
+    
+    const delayDebounceFn = setTimeout(() => {
+      // Εδώ η React περιμένει 500ms αφού σταματήσεις να γράφεις
+      console.log("Το Debouncing λειτούργησε! Αναζήτηση για:", searchQuery);
+    }, 500);
+    
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
   return (
     <nav className="navbar" aria-label="Κεντρική Πλοήγηση" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem', backgroundColor: '#0b0b12', borderBottom: '1px solid #222' }}>
       
-      {/* Λογότυπο Εφαρμογής - HCI: Οπτική Αναγνωρισιμότητα & Shortcut για την Αρχική */}
+      {/* Λογότυπο Εφαρμογής */}
       <div 
         className="nav-logo" 
         onClick={() => onNavigate && onNavigate('home')} 
@@ -21,10 +34,10 @@ function Navbar({ onNavigate, searchQuery = '', setSearchQuery, onOpenAccessibil
         CINEVERSE
       </div>
 
-      {/* Διαδραστικά Στοιχεία: Αναζήτηση και Μενού */}
+      {/* Διαδραστικά Στοιχεία */}
       <div className="nav-actions" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
         
-        {/* Μπάρα Αναζήτησης - Σύνδεση με Live API */}
+        {/* Μπάρα Αναζήτησης */}
         <div className="search-container" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <Search className="search-icon" size={18} style={{ position: 'absolute', left: '12px', color: '#666' }} />
           <input
@@ -49,10 +62,10 @@ function Navbar({ onNavigate, searchQuery = '', setSearchQuery, onOpenAccessibil
           <Home size={22} />
         </button>
 
-        {/* Κουμπί Leaderboard - Ενσωμάτωση Real Gamification */}
+        {/* Κουμπί Leaderboard */}
         <button 
           className="icon-btn" 
-          onClick={() => onNavigate && onNavigate('championship')} // Δυναμική μετάβαση στο live championship
+          onClick={() => onNavigate && onNavigate('championship')} 
           title="Championship Leaderboard"
           aria-label="Προβολή πίνακα κατάταξης"
           style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
@@ -60,7 +73,7 @@ function Navbar({ onNavigate, searchQuery = '', setSearchQuery, onOpenAccessibil
           <Trophy size={22} style={{ color: '#ffd700' }} />
         </button>
 
-        {/* Κουμπί Προσβασιμότητας - Inclusive Design */}
+        {/* Κουμπί Προσβασιμότητας */}
         <button 
           className="icon-btn" 
           onClick={onOpenAccessibility} 
