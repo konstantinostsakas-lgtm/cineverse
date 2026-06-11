@@ -2,9 +2,23 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const db = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_DATABASE || 'cineverse_db',
+  port: process.env.DB_PORT || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 
 const app = express();
 
@@ -21,20 +35,12 @@ const io = new Server(server, {
 const JWT_SECRET = process.env.JWT_SECRET || "CINEVERSE_LOCAL_SECRET_KEY";
 
 // 🔌 ΣΥΝΔΕΣΗ ΜΕ ΤΗ MySQL
-const db = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_DATABASE || 'cineverse_db',
-  port: process.env.DB_PORT || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
-
-db.getConnection((err, connection) => {
-  if (err) console.error("❌ Σφάλμα σύνδεσης στη MySQL:", err.message);
-  else { console.log("🚀 Σύνδεση με MySQL επιτυχής!"); connection.release(); }
+db.query('SELECT 1', (err) => {
+  if (err) {
+    console.error("❌ DB connection error:", err.message);
+  } else {
+    console.log("🚀 DB is connected and alive!");
+  }
 });
 
 const emitLeaderboard = () => {
@@ -226,6 +232,13 @@ io.on('connection', (socket) => {
 // ==========================================
 // 🚀 SERVER START
 // ==========================================
+app.use((err, req, res, next) => {
+  console.error("🔥 UNHANDLED ERROR:", err);
+  res.status(500).json({
+    error: "Internal Server Error",
+    details: err.message
+  });
+});
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`\n==============================================`);
